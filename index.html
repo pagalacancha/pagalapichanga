@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f7a3d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Paga la Cancha">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Paga la Cancha</title>
+<script>
+/* =================== CONFIGURACIÓN =================== */
+// Pega aquí la URL de tu Apps Script (termina en /exec).
+// Si queda vacía, la app funciona en MODO DEMO (datos de prueba en este celular).
+const API_URL = 'https://script.google.com/macros/s/AKfycbyhMwBAQRYdclzwHsSb0PMZvr1td2sMbMxDQcZnc4u-7JULIacdLWkr6vVmhffIw0iv/exec';
+const MONEDA = { locale: 'es-CL', currency: 'CLP' };   // Argentina: es-AR / ARS · México: es-MX / MXN
+const CODIGO_PAIS = '56';                              // para links de WhatsApp (Chile 56, Argentina 549…)
+/* ===================================================== */
+</script>
+<style>
+:root{
+  --bg:#f2f5f1;--card:#fff;--ink:#14201a;--mute:#65736a;--line:#e2e8e3;
+  --pri:#0f7a3d;--pri2:#0b5f2f;--priSoft:#e2f3e8;
+  --red:#c62828;--redSoft:#fdecec;--blue:#1c5cb8;--blueSoft:#e8f0fc;--amber:#9a5b00;--amberSoft:#fff3dc;
+  --r:18px;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05);
+  --safeB:env(safe-area-inset-bottom,0px);--safeT:env(safe-area-inset-top,0px);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0d1310;--card:#161f1a;--ink:#e6eee8;--mute:#93a49a;--line:#25312a;
+  --priSoft:#16351f;--redSoft:#3a1b1b;--blueSoft:#172840;--amberSoft:#382a10;--red:#ef6b6b;--blue:#7fb0f5;--amber:#f0b35a;
+  --shadow:none}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;line-height:1.2}
+.splash{min-height:100vh;display:grid;place-items:center;color:var(--mute)}
+/* barra superior */
+.top{position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;
+  padding:calc(12px + var(--safeT)) 16px 12px;display:flex;align-items:center;gap:10px}
+.top h1{font-size:18px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .ic{background:rgba(255,255,255,.15);border:0;border-radius:12px;width:38px;height:38px;display:grid;place-items:center;cursor:pointer}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--line);color:var(--mute);vertical-align:middle}
+.top .tag{background:#ffd54a;color:#4a3500}
+#bar{position:fixed;top:0;left:0;height:3px;width:0;background:#ffd54a;z-index:50;transition:width .3s}
+body.busy #bar{width:85%;transition:width 6s cubic-bezier(.1,.7,.2,1)}
+body.busy .btn{pointer-events:none;opacity:.7}
+main{padding:14px 14px calc(96px + var(--safeB));max-width:640px;margin:0 auto}
+/* navegación inferior */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:5;background:var(--card);border-top:1px solid var(--line);
+  display:flex;padding:6px 6px calc(6px + var(--safeB))}
+nav button{flex:1;border:0;background:none;padding:6px 2px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:12px;color:var(--mute);cursor:pointer;position:relative}
+nav button .e{font-size:22px;line-height:1;filter:grayscale(1);opacity:.7}
+nav button.on{color:var(--pri);font-weight:700}
+nav button.on .e{filter:none;opacity:1}
+.badge{position:absolute;top:2px;left:calc(50% + 6px);background:var(--red);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px}
+/* tarjetas */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;border:1px solid var(--line)}
+.sec{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:22px 4px 8px}
+.mute{color:var(--mute)}.small{font-size:13px}.center{text-align:center}
+.row{display:flex;align-items:center;gap:10px}.grow{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.chip.g{background:var(--priSoft);border-color:transparent;color:var(--pri);font-weight:600}
+@media (prefers-color-scheme:dark){.chip.g{color:#7fd8a1}}
+/* botones */
+.btn{border:0;border-radius:14px;padding:12px 16px;font-weight:650;cursor:pointer;background:var(--bg);border:1px solid var(--line)}
+.btn.pri{background:var(--pri);color:#fff;border-color:var(--pri)}
+.btn.big{padding:16px;font-size:18px}
+.btn.full{width:100%}
+.btn.red{background:var(--redSoft);color:var(--red);border-color:transparent}
+.btn.sm{padding:7px 11px;font-size:14px;border-radius:11px}
+.btn.link{background:none;border:0;color:var(--pri);padding:6px}
+.btns{display:flex;gap:8px;margin-top:12px}.btns .btn{flex:1}
+/* partido */
+.pt-day{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.pt-when{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--pri)}
+@media (prefers-color-scheme:dark){.pt-when{color:#7fd8a1}}
+.meter{height:10px;background:var(--bg);border-radius:99px;overflow:hidden;margin:6px 0 2px;border:1px solid var(--line)}
+.meter i{display:block;height:100%;background:var(--pri);border-radius:99px}
+.status{border-radius:14px;padding:10px 12px;margin:12px 0;font-weight:600}
+.status.ok{background:var(--priSoft)}.status.warn{background:var(--amberSoft);color:var(--amber)}.status.bad{background:var(--redSoft);color:var(--red)}
+ol.roster{margin:8px 0 0;padding:0;list-style:none;counter-reset:n;columns:2;column-gap:14px}
+ol.roster li{counter-increment:n;padding:6px 0;border-bottom:1px dashed var(--line);break-inside:avoid;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ol.roster li::before{content:counter(n) ".";display:inline-block;width:26px;color:var(--mute);font-variant-numeric:tabular-nums}
+ol.roster li.me{font-weight:700;color:var(--pri)}
+ol.roster li.free{color:var(--mute);font-style:italic}
+ol.roster li.x{text-decoration:line-through;color:var(--mute)}
+.sub{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-top:14px}
+details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
+/* listas */
+.list{padding:4px 16px}
+.li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.li.tap{cursor:pointer}
+.li .t{font-weight:600}
+.amt{font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+.amt.neg{color:var(--red)}.amt.pos{color:var(--pri)}.amt.inf{color:var(--blue)}
+@media (prefers-color-scheme:dark){.amt.pos{color:#7fd8a1}}
+.amt.strike{text-decoration:line-through;color:var(--mute)}
+.pill{font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:4px}
+.pill.pend{background:var(--amberSoft);color:var(--amber)}.pill.rech,.pill.anul{background:var(--redSoft);color:var(--red)}
+/* saldo */
+.hero{border-radius:22px;padding:22px;text-align:center;margin-bottom:14px}
+.hero .lbl{font-weight:700;text-transform:uppercase;font-size:13px;letter-spacing:.08em}
+.hero .big{font-size:42px;font-weight:850;letter-spacing:-.02em;margin:4px 0}
+.hero.bad{background:var(--redSoft);color:var(--red)}.hero.ok{background:var(--priSoft);color:var(--pri)}.hero.inf{background:var(--blueSoft);color:var(--blue)}
+@media (prefers-color-scheme:dark){.hero.ok{color:#7fd8a1}}
+pre.datos{white-space:pre-wrap;font:inherit;margin:8px 0;background:var(--bg);padding:12px;border-radius:12px}
+/* formularios */
+label{display:block;font-size:14px;font-weight:600;color:var(--mute);margin:12px 0 0}
+input,select,textarea{display:block;width:100%;margin-top:6px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:16px;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:-1px}
+.tel{display:flex;margin-top:6px}
+.tel span{display:grid;place-items:center;padding:0 12px;background:var(--line);border:1px solid var(--line);border-radius:12px 0 0 12px;font-weight:700;color:var(--ink)}
+.tel input{margin:0;border-radius:0 12px 12px 0}
+.install{display:flex;align-items:center;gap:12px;background:var(--priSoft);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.install .e{font-size:28px}
+input[type=checkbox]{width:22px;height:22px;margin:0;accent-color:var(--pri);flex:none}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;margin-top:6px}
+.seg button{flex:1;border:0;background:none;padding:10px 6px;border-radius:10px;font-weight:600;color:var(--mute);cursor:pointer;font-size:15px;position:relative}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.seg .badge{top:-4px;left:auto;right:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.prev img{max-width:100%;max-height:220px;border-radius:12px;margin-top:10px;display:block}
+/* login */
+.login{max-width:420px;margin:0 auto;padding:calc(40px + var(--safeT)) 18px 40px}
+.brand{text-align:center;margin-bottom:20px}
+.brand svg{width:84px;height:84px}
+.brand h1{font-size:30px;margin-top:8px;letter-spacing:-.02em}
+.demo{background:var(--amberSoft);color:var(--amber);border-radius:var(--r);padding:14px;margin-top:14px;font-size:14px}
+/* modal */
+#modal{position:fixed;inset:0;z-index:20;display:none}
+#modal.on{display:block}
+#modal .bg{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fade .2s}
+#modal .sheet{position:absolute;left:0;right:0;bottom:0;max-height:92vh;overflow:auto;background:var(--card);border-radius:24px 24px 0 0;
+  padding:8px 18px calc(24px + var(--safeB));max-width:640px;margin:0 auto;animation:up .25s cubic-bezier(.2,.8,.2,1)}
+#modal .grab{width:44px;height:5px;border-radius:9px;background:var(--line);margin:4px auto 14px}
+#modal h2{font-size:21px;margin-bottom:4px}
+@keyframes up{from{transform:translateY(40px);opacity:0}}@keyframes fade{from{opacity:0}}
+#toast{position:fixed;left:50%;bottom:calc(88px + var(--safeB));transform:translateX(-50%) translateY(20px);opacity:0;z-index:30;
+  background:#1d2a22;color:#fff;padding:12px 18px;border-radius:14px;max-width:90vw;font-weight:600;transition:.25s;pointer-events:none;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#toast.err{background:var(--red)}
+.empty{text-align:center;padding:30px 16px;color:var(--mute)}
+.empty .e{font-size:44px}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="app"><div class="splash">Cargando…</div></div>
+<div id="modal"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+ *  PAGA LA CANCHA · App
+ * ===================================================================== */
+const DEMO = !API_URL || /[?&]demo\b/.test(location.search);
+const TK = DEMO ? 'plc_demo_token' : 'plc_token';
+const S = { token: localStorage.getItem(TK) || '', d: null, tab: 'partidos', adm: 'pagos', lastLoad: 0 };
+const A = {};          // acciones llamadas desde onclick
+let FILE = null;       // comprobante elegido en el formulario abierto
+let installEvt = null;
+let loginMode = 'in';
+
+const LOGO = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#fff" stroke="#0b5f2f" stroke-width="4"/>
+<path d="M32 20l9.5 6.9-3.6 11.1H26.1l-3.6-11.1z" fill="#14201a"/>
+<path d="M32 20V7M41.5 26.9l12-4M37.9 38l7.4 10.3M26.1 38l-7.4 10.3M22.5 26.9l-12-4" stroke="#14201a" stroke-width="3.2" fill="none" stroke-linecap="round"/></svg>`;
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const val = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtMoney = new Intl.NumberFormat(MONEDA.locale, { style: 'currency', currency: MONEDA.currency, maximumFractionDigits: 0 });
+const money = n => fmtMoney.format(Math.round(n || 0));
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const dParse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = dParse(s); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const fechaLarga = s => cap(dParse(s).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' }));
+const fechaCorta = s => cap(dParse(s).toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' }));
+const fechaHora = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('es', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }); };
+const isAdmin = () => S.d && S.d.me.rol === 'admin';
+// Pesos enteros: "5.000", "5,000" y "$5000" = 5000 (igual que el servidor).
+const entero = s => Number(String(s == null ? '' : s).replace(/\D/g, '')) || 0;
+// Precio por jugador = costo ÷ dividirEntre, redondeado hacia arriba al múltiplo de "redondeo" (igual que el servidor).
+const precioDe = (costo, cfg) => { cfg = cfg || S.d.config; const div = Math.max(1, cfg.dividirEntre), red = Math.max(1, cfg.redondeo || 1); return Math.ceil(entero(costo) / (div * red)) * red; };
+/** "12 × $5.900 = $70.800 · sobran $800 de la cancha" */
+function cuentaCancha(n, precio, costo) {
+  const total = n * precio, dif = total - costo;
+  return `${n} × ${money(precio)} = <b>${money(total)}</b>` + (costo > 0 ? ` · cancha ${money(costo)}` +
+    (dif < 0 ? ` · <span class="amt neg">faltan ${money(-dif)}</span>` : dif > 0 ? ` · sobran ${money(dif)}` : ' · justo ✅') : '');
+}
+const inputMonto = (id, v, extra) => `<input id="${id}" type="text" inputmode="numeric" autocomplete="off" value="${v || ''}" placeholder="0" ${extra || ''}>`;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function cuando(f) {
+  if (f === S.d.hoy) return 'Hoy';
+  if (f === addDays(S.d.hoy, 1)) return 'Mañana';
+  const n = Math.round((dParse(f) - dParse(S.d.hoy)) / 864e5);
+  return n > 1 && n < 7 ? 'En ' + n + ' días' : n < 0 ? 'Ya jugado' : '';
+}
+function waTel(t) { t = String(t || '').replace(/\D/g, ''); return t.length <= 9 ? CODIGO_PAIS + t : t; }
+function wa(text, tel) { return 'https://wa.me/' + (tel ? waTel(tel) : '') + '?text=' + encodeURIComponent(text); }
+function appUrl() { return location.origin + location.pathname.replace(/index\.html$/, ''); }
+
+let toastT;
+function toast(msg, kind) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = 'on' + (kind === 'err' ? ' err' : '');
+  clearTimeout(toastT); toastT = setTimeout(() => t.className = '', kind === 'err' ? 4200 : 2800);
+}
+let busyN = 0;
+function setBusy(on) { busyN = Math.max(0, busyN + (on ? 1 : -1)); document.body.classList.toggle('busy', busyN > 0); }
+
+/* ---------- servidor ---------- */
+async function call(action, args) {
+  const req = { action, token: S.token, args: args || {} };
+  let r;
+  if (DEMO) {
+    await sleep(120);
+    DEMO_STORE.refresh();   // por si hay otra pestaña con el demo abierto
+    r = JSON.parse(JSON.stringify(api_(JSON.parse(JSON.stringify(req)))));
+  } else {
+    let res;
+    try {
+      res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) });
+    } catch (e) { throw new Error('Sin conexión. Revisa tu internet.'); }
+    const txt = await res.text();
+    try { r = JSON.parse(txt); } catch (e) { throw new Error('El servidor no respondió bien. Intenta de nuevo.'); }
+  }
+  if (!r.ok) {
+    if (r.code === 'auth') { setToken(''); S.d = null; render(); }
+    throw new Error(r.error || 'Error');
+  }
+  return r;
+}
+function setToken(t) { S.token = t; if (t) localStorage.setItem(TK, t); else localStorage.removeItem(TK); }
+
+async function load(quiet) {
+  if (!S.token) return render();
+  setBusy(true);
+  try { S.d = await call('estado'); S.lastLoad = Date.now(); }
+  catch (e) { if (!quiet) toast(e.message, 'err'); }
+  finally { setBusy(false); render(); }
+}
+/** Ejecuta una acción con indicador de carga y manejo de errores. */
+async function run(fn) {
+  if (busyN > 0) return;
+  setBusy(true);
+  try { return await fn(); }
+  catch (e) { toast(e.message || 'Error', 'err'); }
+  finally { setBusy(false); }
+}
+/** Llama al servidor, muestra el mensaje, recarga datos. */
+function act(action, args, after) {
+  return run(async () => {
+    const r = await call(action, args);
+    if (r.mensaje) toast(r.mensaje);
+    closeModal();
+    await load(true);
+    if (after) after(r);
+    return r;
+  });
+}
+
+/* ---------- modal ---------- */
+function modal(html) {
+  const m = $('#modal');
+  m.innerHTML = `<div class="bg" onclick="closeModal()"></div><div class="sheet" role="dialog"><div class="grab"></div>${html}</div>`;
+  m.className = 'on';
+}
+function closeModal() { const m = $('#modal'); m.className = ''; m.innerHTML = ''; FILE = null; }
+function ask(title, text, ok, danger) {
+  return new Promise(res => {
+    A._ask = v => { closeModal(); res(v); };
+    modal(`<h2>${esc(title)}</h2><p class="mute">${text}</p>
+      <div class="btns"><button class="btn" onclick="A._ask(false)">Volver</button>
+      <button class="btn ${danger ? 'red' : 'pri'}" onclick="A._ask(true)">${esc(ok)}</button></div>`);
+  });
+}
+A.seg = el => { [...el.parentNode.children].forEach(b => b.classList.toggle('on', b === el)); if (el.dataset.on) A[el.dataset.on](el.dataset.v); };
+const segVal = id => { const b = document.querySelector('#' + id + ' button.on'); return b ? b.dataset.v : ''; };
+
+/* ---------- comprobantes ---------- */
+async function leerArchivo(f) {
+  if (f.type === 'application/pdf') {
+    if (f.size > 3e6) throw new Error('El PDF es muy grande (máx. 3 MB)');
+    const b64 = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ko; r.readAsDataURL(f); });
+    return { name: f.name, mime: f.type, b64, pdf: true };
+  }
+  if (!/^image\//.test(f.type)) throw new Error('Adjunta una foto o PDF');
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('No se pudo leer la imagen')); i.src = url; });
+    const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    const data = c.toDataURL('image/jpeg', 0.75);
+    return { name: 'comprobante.jpg', mime: 'image/jpeg', b64: data.split(',')[1], url: data };
+  } finally { URL.revokeObjectURL(url); }
+}
+A.file = async input => {
+  FILE = null;
+  const prev = document.getElementById('f_prev');
+  const f = input.files && input.files[0];
+  if (!f) { prev.innerHTML = ''; return; }
+  prev.innerHTML = '<p class="mute small">Procesando…</p>';
+  try {
+    FILE = await leerArchivo(f);
+    prev.innerHTML = FILE.pdf ? `<p class="small">📄 ${esc(FILE.name)}</p>` : `<img src="${FILE.url}" alt="comprobante">`;
+  } catch (e) { prev.innerHTML = ''; input.value = ''; toast(e.message, 'err'); }
+};
+function campoArchivo(label) {
+  return `<label>${label}<input type="file" accept="image/*,application/pdf" onchange="A.file(this)"></label><div id="f_prev" class="prev"></div>`;
+}
+const archivoArg = () => FILE ? { name: FILE.name, mime: FILE.mime, b64: FILE.b64 } : null;
+A.verComp = id => run(async () => {
+  const r = await call('verComprobante', { id });
+  if (/pdf/.test(r.mime)) {
+    const bin = atob(r.b64), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([u8], { type: r.mime }));
+    modal(`<h2>Comprobante</h2><p><a class="btn pri full" style="display:block;text-align:center;text-decoration:none" href="${url}" target="_blank" download="comprobante.pdf">📄 Abrir PDF</a></p>`);
+  } else {
+    modal(`<h2>Comprobante</h2><img src="data:${esc(r.mime)};base64,${r.b64}" style="width:100%;border-radius:14px;margin-top:10px" alt="comprobante">
+      <button class="btn full" style="margin-top:12px" onclick="closeModal()">Cerrar</button>`);
+  }
+});
+
+/* ---------- datos derivados ---------- */
+const insOf = pid => S.d.inscripciones.filter(i => i.partidoId === pid).sort((a, b) => a.actualizado < b.actualizado ? -1 : 1);
+const empezo = p => S.d.ahora >= p.fecha + ' ' + p.hora;
+const partidoById = id => S.d.partidos.find(p => p.id === id);
+const jugadorById = id => (S.d.jugadores || []).find(j => j.id === id);
+const asc = (a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora);
+
+/* =====================================================================
+ *  Vistas
+ * ===================================================================== */
+function render() {
+  const app = $('#app');
+  if (!S.token) { app.innerHTML = viewLogin(); return; }
+  if (!S.d) { app.innerHTML = `<div class="splash"><div class="center">${LOGO.replace('<svg', '<svg width="64" height="64"')}<p>Cargando…</p></div></div>`; return; }
+  if (S.tab === 'admin' && !isAdmin()) S.tab = 'partidos';
+  const views = { partidos: viewPartidos, cuenta: viewCuenta, admin: viewAdmin, perfil: viewPerfil };
+  app.innerHTML = `<header class="top"><h1>${esc(S.d.config.nombreGrupo)} ${DEMO ? '<span class="tag">DEMO</span>' : ''}</h1>
+      <button class="ic" onclick="load()" aria-label="Actualizar">⟳</button></header>
+    <main>${views[S.tab]()}</main>${viewNav()}`;
+  if (S.tab === 'admin' && S.adm === 'ajustes') A.hintConfig();
+}
+
+function viewNav() {
+  const pend = isAdmin() ? S.d.movimientos.filter(m => m.estado === 'pendiente').length : 0;
+  const t = (id, e, label, badge) => `<button class="${S.tab === id ? 'on' : ''}" onclick="A.tab('${id}')"><span class="e">${e}</span>${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+  return `<nav>${t('partidos', '⚽', 'Partidos')}${t('cuenta', '💰', 'Mi cuenta', S.d.saldo.deuda > 0 ? '!' : '')}${isAdmin() ? t('admin', '🛠️', 'Admin', pend) : ''}${t('perfil', '👤', 'Perfil')}</nav>`;
+}
+A.tab = t => { S.tab = t; render(); scrollTo(0, 0); };
+
+/* ---------- ingreso ---------- */
+function viewLogin() {
+  const reg = loginMode === 'reg';
+  return `<div class="login">
+    <div class="brand">${LOGO}<h1>Paga la Cancha</h1><p class="mute">Inscripciones y pagos del fútbol</p></div>
+    <div class="seg" style="margin-bottom:14px">
+      <button class="${reg ? '' : 'on'}" onclick="A.loginMode('in')">Ingresar</button>
+      <button class="${reg ? 'on' : ''}" onclick="A.loginMode('reg')">Crear cuenta</button></div>
+    ${bannerInstalar()}
+    <div class="card">
+      <label>Tu nombre<input id="f_nombre" autocomplete="name" maxlength="40" placeholder="${reg ? 'Como te conocen en el grupo' : 'Ej: Jonathan'}"></label>
+      <label>Teléfono <span class="small">${reg ? '' : '(es tu clave)'}</span>${campoTel('f_tel', '', !reg)}</label>
+      ${reg ? `<label>Código del grupo<input id="f_cod" autocapitalize="off" autocomplete="off" placeholder="Te lo da un administrador"></label>` : ''}
+      <button class="btn pri full big" style="margin-top:16px" onclick="A.login()">${reg ? 'Crear cuenta' : 'Ingresar'}</button>
+      <p class="mute small center">${reg ? 'Después ingresas con tu nombre y tu teléfono.' : 'Ingresa con tu nombre y tu número de celular.'}</p>
+    </div>
+    ${DEMO ? `<div class="demo"><b>Modo demo</b>: los datos son de prueba y quedan sólo en este dispositivo.
+      <div class="btns"><button class="btn sm" onclick="A.demoLogin('Jonathan','911111111')">Entrar como admin</button>
+      <button class="btn sm" onclick="A.demoLogin('Jugador Demo','922222222')">Entrar como jugador</button></div>
+      <p class="small" style="margin:8px 0 0">Admins: Jonathan 911111111 · Tomas 933333333 · Alvaro 944444444<br>Jugador Demo 922222222 · Código del grupo: DEMO</p></div>` : ''}
+  </div>`;
+}
+/** Campo de teléfono con +56 fijo: la persona escribe sólo los 9 dígitos. */
+function campoTel(id, valor, enter) {
+  return `<div class="tel"><span>+56</span><input id="${id}" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="12"
+    placeholder="9 1234 5678" value="${esc(valor || '')}"${enter ? ` onkeydown="if(event.key==='Enter')A.login()"` : ''}></div>`;
+}
+function fmtTel(t) {
+  const m = String(t || '').match(/^56(\d)(\d{4})(\d{4})$/);
+  return m ? `+56 ${m[1]} ${m[2]} ${m[3]}` : String(t || '');
+}
+const tel9 = t => String(t || '').replace(/^56(?=\d{9}$)/, '');
+A.loginMode = m => { loginMode = m; render(); };
+A.login = () => run(async () => {
+  const reg = loginMode === 'reg';
+  const args = { nombre: val('f_nombre'), telefono: val('f_tel') };
+  if (reg) args.codigo = val('f_cod');
+  const r = await call(reg ? 'registro' : 'login', args);
+  setToken(r.token);
+  S.tab = 'partidos';
+  await load();
+});
+A.demoLogin = (nombre, tel) => run(async () => {
+  const r = await call('login', { nombre, telefono: tel });
+  setToken(r.token); S.tab = 'partidos'; await load();
+});
+
+/* ---------- instalar ---------- */
+const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// Navegadores dentro de otras apps (WhatsApp, Instagram, Facebook…) no permiten instalar.
+const embebida = () => /; wv\)|FBAN|FBAV|Instagram|Line\/|WhatsApp/i.test(navigator.userAgent);
+function bannerInstalar() {
+  if (instalada()) return '';
+  if (installEvt) return `<div class="install"><div class="e">📲</div><div class="grow"><b>Instala la app</b>
+    <div class="small mute">Queda en tu pantalla de inicio como cualquier app.</div></div>
+    <button class="btn pri sm" onclick="A.instalar()">Instalar</button></div>`;
+  if (embebida()) return `<div class="install"><div class="e">🌐</div><div class="grow small">Para instalar la app abre este link en
+    <b>Chrome</b>: menú ⋮ → <b>“Abrir en Chrome”</b>.</div></div>`;
+  return '';
+}
+
+/* ---------- partidos ---------- */
+function viewPartidos() {
+  // Primero los próximos; los ya jugados que el admin aún no cierra van al final.
+  const abiertos = S.d.partidos.filter(p => p.estado === 'abierto').sort((a, b) => empezo(a) - empezo(b) || asc(a, b));
+  const prev = S.d.partidos.filter(p => p.estado !== 'abierto').sort((a, b) => asc(b, a));
+  let h = bannerInstalar();
+  if (!abiertos.length) h += `<div class="card empty"><div class="e">⚽</div><p><b>No hay partidos programados</b></p>
+    ${isAdmin() ? `<button class="btn pri" onclick="A.nuevoPartido()">Crear partido</button>` : '<p class="small">Cuando el administrador cree uno aparecerá aquí.</p>'}</div>`;
+  h += abiertos.map(cardPartido).join('');
+  if (prev.length) {
+    h += `<h3 class="sec">Partidos anteriores</h3><div class="card list">` + prev.map(p => {
+      const mia = insOf(p.id).find(i => i.jugadorId === S.d.me.id);
+      const n = insOf(p.id).filter(i => i.estado === 'titular').length;
+      const yo = mia ? { titular: 'Jugaste', cancelado_tarde: 'Cancelaste tarde', espera: 'En espera', cancelado: 'Cancelaste' }[mia.estado] : '';
+      return `<div class="li"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}</div>
+        <div class="small mute">${p.estado === 'suspendido' ? '🚫 Suspendido' : n + ' jugadores · ' + money(p.precio)}${yo ? ' · ' + yo : ''}</div></div></div>`;
+    }).join('') + `</div>`;
+  }
+  return h;
+}
+
+function cardPartido(p) {
+  const L = insOf(p.id), me = S.d.me.id;
+  const tit = L.filter(i => i.estado === 'titular'), esp = L.filter(i => i.estado === 'espera'), tarde = L.filter(i => i.estado === 'cancelado_tarde');
+  const mia = L.find(i => i.jugadorId === me && i.estado !== 'cancelado');
+  const started = empezo(p), lleno = tit.length >= p.cupo, libres = Math.max(0, p.cupo - tit.length);
+  const w = started ? 'Jugado · pendiente de cierre' : cuando(p.fecha);
+  let status = '';
+  if (mia && mia.estado === 'titular') status = `<div class="status ok">✅ Estás anotado</div>`;
+  else if (mia && mia.estado === 'espera') status = `<div class="status warn">⏳ Estás en lista de espera (#${esp.indexOf(mia) + 1})</div>`;
+  else if (mia && mia.estado === 'cancelado_tarde') status = `<div class="status bad">⚠️ Cancelaste el mismo día: igual debes pagar ${money(p.precio)}</div>`;
+  let accion;
+  if (started) accion = `<p class="mute small center">El partido ya comenzó.${isAdmin() ? ' Ciérralo para cobrar.' : ''}</p>`;
+  else if (mia && (mia.estado === 'titular' || mia.estado === 'espera')) accion = `<button class="btn red full" onclick="A.cancelar('${p.id}')">Cancelar mi cupo</button>`;
+  else accion = `<button class="btn pri full big" onclick="A.anotar('${p.id}')">${lleno ? '⏳ Anotarme en lista de espera' : '⚽ Me anoto'}</button>`;
+  const li = (i, cls) => `<li class="${i.jugadorId === me ? 'me ' : ''}${cls || ''}">${esc(i.nombre)}${i.jugadorId === me ? ' (tú)' : ''}</li>`;
+  return `<div class="card">
+    ${w ? `<div class="pt-when">${w}</div>` : ''}
+    <div class="pt-day">${fechaLarga(p.fecha)}</div>
+    <div class="mute">🕗 ${esc(p.hora)}${p.lugar ? ' · 📍 ' + esc(p.lugar) : ''}</div>
+    ${p.nota ? `<p class="small">${esc(p.nota)}</p>` : ''}
+    <div class="chips"><span class="chip g">${money(p.precio)} por jugador</span><span class="chip">${tit.length}/${p.cupo} anotados</span>${esp.length ? `<span class="chip">${esp.length} en espera</span>` : ''}</div>
+    <div class="meter"><i style="width:${Math.min(100, tit.length / p.cupo * 100)}%"></i></div>
+    <div class="small mute">${lleno ? 'Cupos completos' : 'Quedan ' + libres + ' cupo' + (libres === 1 ? '' : 's')}</div>
+    ${status}
+    <div style="margin-top:12px">${accion}</div>
+    <div class="sub">Titulares</div>
+    <ol class="roster">${tit.map(i => li(i)).join('')}${'<li class="free">libre</li>'.repeat(libres)}</ol>
+    ${esp.length ? `<div class="sub">Lista de espera</div><ol class="roster">${esp.map(i => li(i)).join('')}</ol>` : ''}
+    ${tarde.length ? `<div class="sub">Cancelaron el mismo día (pagan igual)</div><ol class="roster">${tarde.map(i => li(i, 'x')).join('')}</ol>` : ''}
+    <div class="btns"><button class="btn sm" onclick="A.compartir('${p.id}')">📲 Compartir lista</button>
+      ${isAdmin() ? `<button class="btn sm" onclick="A.gestionar('${p.id}')">🛠️ Gestionar</button>` : ''}</div>
+  </div>`;
+}
+A.anotar = pid => act('inscribir', { partidoId: pid });
+A.cancelar = async pid => {
+  const p = partidoById(pid);
+  const mia = insOf(pid).find(i => i.jugadorId === S.d.me.id && (i.estado === 'titular' || i.estado === 'espera'));
+  const tarde = mia && mia.estado === 'titular' && S.d.hoy >= p.fecha;
+  const ok = await ask(tarde ? '¿Cancelar hoy?' : '¿Cancelar tu cupo?',
+    tarde ? `Hoy es el día del partido: si cancelas <b>igual debes pagar ${money(p.precio)}</b>.` : 'Tu cupo quedará libre para otro jugador.',
+    'Sí, cancelar', true);
+  if (ok) act('cancelar', { partidoId: pid });
+};
+A.compartir = pid => {
+  const p = partidoById(pid), L = insOf(pid);
+  const tit = L.filter(i => i.estado === 'titular'), esp = L.filter(i => i.estado === 'espera');
+  let t = `⚽ *${fechaLarga(p.fecha)} · ${p.hora}*\n` + (p.lugar ? `📍 ${p.lugar}\n` : '') + `💰 ${money(p.precio)} por jugador\n\n`;
+  for (let k = 0; k < p.cupo; k++) t += `${k + 1}. ${tit[k] ? tit[k].nombre : ''}\n`;
+  if (esp.length) t += `\n⏳ Espera:\n` + esp.map((i, k) => `${k + 1}. ${i.nombre}`).join('\n') + '\n';
+  t += `\n👉 Anótate aquí: ${appUrl()}`;
+  if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) navigator.share({ text: t }).catch(() => { });
+  else open(wa(t), '_blank');
+};
+
+/* ---------- mi cuenta ---------- */
+function heroSaldo(s) {
+  const d = s.deuda;
+  return `<div class="hero ${d > 0 ? 'bad' : d < 0 ? 'inf' : 'ok'}">
+    <div class="lbl">${d > 0 ? 'Debes' : d < 0 ? 'Saldo a favor' : 'Estás al día'}</div>
+    <div class="big">${d === 0 ? '✅' : money(Math.abs(d))}</div>
+    ${s.pendiente > 0 ? `<div class="small">⏳ ${money(s.pendiente)} en revisión</div>` : ''}</div>`;
+}
+function rowMov(m, adminView) {
+  const cargo = m.tipo === 'cargo';
+  const muerto = m.estado === 'anulado' || m.estado === 'rechazado';
+  const titulo = cargo ? (m.nota || 'Cargo') : 'Pago' + (m.metodo ? ' · ' + cap(m.metodo) : '');
+  const pill = { pendiente: '<span class="pill pend">en revisión</span>', rechazado: '<span class="pill rech">rechazado</span>', anulado: '<span class="pill anul">anulado</span>' }[m.estado] || '';
+  const sub = [fechaHora(m.fecha), !cargo && m.nota ? esc(m.nota) : ''].filter(Boolean).join(' · ');
+  return `<div class="li"><div class="grow"><div class="t">${esc(titulo)}${pill}</div><div class="small mute">${sub}</div>
+      ${m.comprobante || (adminView && !muerto) ? `<div class="row" style="gap:4px;margin-top:4px">
+        ${m.comprobante ? `<button class="btn sm" onclick="A.verComp('${m.id}')">📎 Comprobante</button>` : ''}
+        ${adminView && !muerto ? `<button class="btn sm" onclick="A.anular('${m.id}','${m.jugadorId}')">Anular</button>` : ''}</div>` : ''}</div>
+    <div class="amt ${muerto ? 'strike' : cargo ? 'neg' : 'pos'}">${cargo ? '−' : '+'}${money(m.monto)}</div></div>`;
+}
+function viewCuenta() {
+  const s = S.d.saldo, c = S.d.config;
+  const movs = S.d.misMovimientos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+  return heroSaldo(s) + `
+    <button class="btn pri full big" onclick="A.pagar()">💸 Informar un pago</button>
+    ${c.datosTransferencia ? `<h3 class="sec">Datos para transferir</h3><div class="card"><pre class="datos">${esc(c.datosTransferencia)}</pre>
+      <button class="btn sm" onclick="A.copiar()">📋 Copiar datos</button></div>` : ''}
+    <h3 class="sec">Historial</h3>
+    <div class="card list">${movs.length ? movs.map(m => rowMov(m, false)).join('') : '<p class="mute center">Aún no tienes movimientos.</p>'}</div>
+    <p class="small mute center">Cada partido jugado suma un cargo. Tus pagos se descuentan cuando el administrador los aprueba.</p>`;
+}
+A.copiar = () => { navigator.clipboard && navigator.clipboard.writeText(S.d.config.datosTransferencia).then(() => toast('Datos copiados 📋'), () => toast('No se pudo copiar', 'err')); };
+A.pagar = () => {
+  const d = S.d.saldo.deuda - S.d.saldo.pendiente;
+  modal(`<h2>Informar un pago</h2><p class="mute small">El administrador lo revisará y quedará descontado de tu deuda.</p>
+    <label>Monto${inputMonto('p_monto', d > 0 ? d : '')}</label>
+    <label>Método</label>
+    <div class="seg" id="p_met"><button class="on" data-v="transferencia" onclick="A.seg(this)">🏦 Transferencia</button><button data-v="efectivo" onclick="A.seg(this)">💵 Efectivo</button></div>
+    ${campoArchivo('Comprobante <span class="small">(obligatorio en transferencias)</span>')}
+    <label>Nota (opcional)<input id="p_nota" maxlength="200" placeholder="Ej: pago de 2 partidos"></label>
+    <button class="btn pri full big" style="margin-top:16px" onclick="A.enviarPago()">Enviar pago</button>`);
+};
+A.enviarPago = () => {
+  const metodo = segVal('p_met');
+  if (metodo === 'transferencia' && !FILE) return toast('Adjunta el comprobante de la transferencia', 'err');
+  act('informarPago', { monto: val('p_monto'), metodo, nota: val('p_nota'), archivo: archivoArg() });
+};
+
+/* ---------- perfil ---------- */
+function viewPerfil() {
+  const me = S.d.me;
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return `<div class="card"><div class="row"><div style="font-size:40px">👤</div><div class="grow">
+      <div class="t" style="font-size:20px;font-weight:750">${esc(me.nombre)}</div>
+      <div class="mute">${esc(fmtTel(me.telefono))} ${me.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}</div></div></div>
+      <p class="small mute">Ingresas con tu nombre y tu teléfono. Si cambias de número, avísale a un administrador.</p></div>
+    <h3 class="sec">Instalar en el celular</h3><div class="card">
+      ${instalada() ? '✅ La app ya está instalada.' : installEvt ? `<button class="btn pri full" onclick="A.instalar()">📲 Instalar app</button>`
+      : embebida() ? 'Estás dentro de otra app (WhatsApp, Instagram…). Abre el link en <b>Chrome</b>: menú ⋮ → <b>“Abrir en Chrome”</b>.'
+      : ios ? 'En iPhone: abre el link en <b>Safari</b>, toca <b>Compartir</b> (□↑) y luego <b>“Agregar a inicio”</b>.'
+      : 'En Android: abre el link en <b>Chrome</b>, menú ⋮ → <b>“Instalar app”</b> o <b>“Agregar a la pantalla principal”</b>.'}</div>
+    <button class="btn red full" onclick="A.salir()">Cerrar sesión</button>
+    ${DEMO ? `<button class="btn full" style="margin-top:10px" onclick="A.resetDemo()">🔄 Reiniciar datos del demo</button>` : ''}`;
+}
+A.salir = async () => {
+  if (!await ask('¿Cerrar sesión?', 'Tendrás que ingresar de nuevo con tu nombre y teléfono.', 'Cerrar sesión', true)) return;
+  try { await call('logout', { token: S.token }); } catch (e) { }
+  setToken(''); S.d = null; render();
+};
+A.instalar = async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; render(); };
+A.resetDemo = async () => {
+  if (!await ask('¿Reiniciar demo?', 'Se borran los datos de prueba y vuelven los de ejemplo.', 'Reiniciar', true)) return;
+  DEMO_STORE.reset(); setToken(''); S.d = null; render();
+};
+
+/* =====================================================================
+ *  Administración
+ * ===================================================================== */
+function viewAdmin() {
+  const pend = S.d.movimientos.filter(m => m.estado === 'pendiente').length;
+  const porCerrar = S.d.partidos.filter(p => p.estado === 'abierto' && empezo(p)).length;
+  const t = (id, label, b) => `<button class="${S.adm === id ? 'on' : ''}" onclick="A.adm('${id}')">${label}${b ? `<span class="badge">${b}</span>` : ''}</button>`;
+  const body = { pagos: admPagos, jugadores: admJugadores, partidos: admPartidos, ajustes: admAjustes }[S.adm]();
+  return `<div class="seg" style="margin-bottom:14px">${t('pagos', 'Pagos', pend)}${t('jugadores', 'Deudas')}${t('partidos', 'Partidos', porCerrar)}${t('ajustes', 'Ajustes')}</div>${body}`;
+}
+A.adm = t => { S.adm = t; render(); };
+const nombreJ = id => { const j = jugadorById(id); return j ? j.nombre : '?'; };
+
+function admPagos() {
+  const L = S.d.movimientos.filter(m => m.estado === 'pendiente').sort((a, b) => a.fecha.localeCompare(b.fecha));
+  if (!L.length) return `<div class="card empty"><div class="e">🎉</div><p><b>No hay pagos por revisar</b></p><p class="small">Cuando un jugador informe un pago aparecerá aquí.</p></div>`;
+  return L.map(m => `<div class="card"><div class="row"><div class="grow"><div class="t" style="font-weight:700;font-size:18px">${esc(nombreJ(m.jugadorId))}</div>
+      <div class="small mute">${cap(m.metodo)} · ${fechaHora(m.fecha)}</div>${m.nota ? `<div class="small">“${esc(m.nota)}”</div>` : ''}</div>
+      <div class="amt pos" style="font-size:22px">${money(m.monto)}</div></div>
+      <div class="small mute" style="margin-top:6px">Deuda actual: ${money((jugadorById(m.jugadorId) || {}).deuda)}</div>
+      <div class="btns">${m.comprobante ? `<button class="btn" onclick="A.verComp('${m.id}')">📎 Ver</button>` : '<span class="small mute" style="align-self:center">Sin comprobante</span>'}
+      <button class="btn red" onclick="A.rechazar('${m.id}')">Rechazar</button><button class="btn pri" onclick="A.aprobar('${m.id}')">Aprobar</button></div></div>`).join('');
+}
+A.aprobar = id => act('revisarPago', { id, aprobar: true });
+A.rechazar = id => modal(`<h2>Rechazar pago</h2><label>Motivo (opcional, lo verá el jugador)<input id="r_mot" maxlength="100" placeholder="Ej: no llegó la transferencia"></label>
+  <div class="btns"><button class="btn" onclick="closeModal()">Volver</button><button class="btn red" onclick="act('revisarPago',{id:'${id}',aprobar:false,motivo:val('r_mot')})">Rechazar</button></div>`);
+
+function admJugadores() {
+  const js = S.d.jugadores.slice().sort((a, b) => (b.activo === 'si') - (a.activo === 'si') || b.deuda - a.deuda || a.nombre.localeCompare(b.nombre));
+  const total = js.reduce((s, j) => s + Math.max(0, j.deuda), 0);
+  const deudores = js.filter(j => j.deuda > 0).length;
+  return `<div class="hero ${total > 0 ? 'bad' : 'ok'}"><div class="lbl">Total por cobrar</div><div class="big">${money(total)}</div>
+      <div class="small">${deudores} jugador${deudores === 1 ? '' : 'es'} con deuda</div></div>
+    <div class="btns" style="margin-bottom:14px"><button class="btn sm" onclick="A.compartirDeudas()">📲 Compartir lista de deudas</button></div>
+    <input placeholder="🔎 Buscar jugador" oninput="A.filtrar(this.value)">
+    <div class="card list" style="margin-top:10px">${js.map(j => `<div class="li tap" data-n="${esc(j.nombre.toLowerCase())}" onclick="A.jugador('${j.id}')">
+      <div class="grow"><div class="t">${esc(j.nombre)} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}${j.activo !== 'si' ? '<span class="tag">INACTIVO</span>' : ''}</div>
+      <div class="small mute">${j.pendiente > 0 ? '⏳ ' + money(j.pendiente) + ' en revisión' : esc(fmtTel(j.telefono))}</div></div>
+      <div class="amt ${j.deuda > 0 ? 'neg' : j.deuda < 0 ? 'inf' : 'pos'}">${j.deuda > 0 ? money(j.deuda) : j.deuda < 0 ? '+' + money(-j.deuda) : 'Al día'}</div></div>`).join('')}</div>`;
+}
+A.filtrar = q => { q = q.toLowerCase(); document.querySelectorAll('[data-n]').forEach(e => e.style.display = e.dataset.n.includes(q) ? '' : 'none'); };
+A.compartirDeudas = () => {
+  const L = S.d.jugadores.filter(j => j.deuda > 0).sort((a, b) => b.deuda - a.deuda);
+  const t = `💰 *Deudas ${S.d.config.nombreGrupo}*\n\n` + (L.length ? L.map(j => `• ${j.nombre}: ${money(j.deuda)}`).join('\n') : '¡Nadie debe! 🎉') + `\n\nPaga e informa tu pago aquí: ${appUrl()}`;
+  open(wa(t), '_blank');
+};
+A.jugador = id => {
+  const j = jugadorById(id);
+  const movs = S.d.movimientos.filter(m => m.jugadorId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const cobro = `Hola ${j.nombre} 👋 Tienes una deuda de ${money(j.deuda)} en ${S.d.config.nombreGrupo}. Puedes pagar e informar tu pago aquí: ${appUrl()}`;
+  modal(`<h2>${esc(j.nombre)}</h2><p class="mute">📞 ${esc(fmtTel(j.telefono))} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}</p>
+    ${heroSaldo(j)}
+    <div class="btns"><button class="btn pri" onclick="A.movAdmin('${id}','pago')">💵 Registrar pago</button><button class="btn" onclick="A.movAdmin('${id}','cargo')">➕ Cargo</button></div>
+    ${j.deuda > 0 ? `<a class="btn full" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" href="${wa(cobro, j.telefono)}">💬 Cobrar por WhatsApp</a>` : ''}
+    <h3 class="sec">Movimientos</h3><div class="list" style="padding:0">${movs.length ? movs.map(m => rowMov(m, true)).join('') : '<p class="mute">Sin movimientos.</p>'}</div>
+    ${j.rol === 'admin' ? '<p class="small mute" style="margin-top:14px">Administrador fijo: sus datos se cambian en el código (ADMINS).</p>'
+    : `<details style="margin-top:14px"><summary>Opciones de la cuenta</summary>
+      <label>Nombre<input id="e_nombre" maxlength="40" value="${esc(j.nombre)}"></label>
+      <label>Teléfono (su clave)${campoTel('e_tel', tel9(j.telefono))}</label>
+      <button class="btn full" style="margin-top:10px" onclick="act('editarJugador',{id:'${id}',nombre:val('e_nombre'),telefono:val('e_tel')},()=>A.jugador('${id}'))">Guardar nombre y teléfono</button>
+      <button class="btn sm red" style="margin-top:10px" onclick="act('editarJugador',{id:'${id}',activo:${j.activo === 'si' ? 'false' : 'true'}})">${j.activo === 'si' ? 'Desactivar cuenta' : 'Activar cuenta'}</button>
+      </details>`}`);
+};
+A.movAdmin = (id, tipo) => {
+  const j = jugadorById(id);
+  modal(`<h2>${tipo === 'pago' ? 'Registrar pago' : 'Agregar cargo'}</h2><p class="mute">${esc(j.nombre)}</p>
+    <label>Monto${inputMonto('m_monto', tipo === 'pago' && j.deuda > 0 ? j.deuda : '')}</label>
+    ${tipo === 'pago' ? `<label>Método</label><div class="seg" id="m_met"><button class="on" data-v="efectivo" onclick="A.seg(this)">💵 Efectivo</button><button data-v="transferencia" onclick="A.seg(this)">🏦 Transferencia</button></div>
+      ${campoArchivo('Comprobante (opcional)')}` : ''}
+    <label>${tipo === 'cargo' ? 'Motivo' : 'Nota (opcional)'}<input id="m_nota" maxlength="200" placeholder="${tipo === 'cargo' ? 'Ej: Saldo inicial, deuda anterior…' : ''}"></label>
+    <button class="btn pri full big" style="margin-top:16px" onclick="A.guardarMov('${id}','${tipo}')">Guardar</button>`);
+};
+A.guardarMov = (id, tipo) => act('registrarMovimiento', {
+  jugadorId: id, tipo, monto: val('m_monto'), metodo: tipo === 'pago' ? segVal('m_met') : '', nota: val('m_nota'), archivo: archivoArg()
+}, () => A.jugador(id));
+A.anular = async (mid, jid) => {
+  if (!await ask('¿Anular movimiento?', 'Dejará de contar en el saldo. Queda registrado como anulado.', 'Anular', true)) return;
+  act('anularMovimiento', { id: mid }, () => jid && isAdmin() && A.jugador(jid));
+};
+
+/* ---------- partidos (admin) ---------- */
+function admPartidos() {
+  const abiertos = S.d.partidos.filter(p => p.estado === 'abierto').sort(asc);
+  return `<button class="btn pri full big" onclick="A.nuevoPartido()">➕ Nuevo partido</button>
+    <h3 class="sec">Abiertos</h3>
+    ${abiertos.length ? `<div class="card list">${abiertos.map(p => {
+      const n = insOf(p.id).filter(i => i.estado === 'titular').length;
+      return `<div class="li tap" onclick="A.gestionar('${p.id}')"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}
+        ${empezo(p) ? '<span class="pill pend">por cerrar</span>' : ''}</div><div class="small mute">${n}/${p.cupo} · ${money(p.precio)} c/u</div></div><span class="mute">›</span></div>`;
+    }).join('')}</div>` : '<p class="mute center">No hay partidos abiertos.</p>'}
+    <p class="small mute">Después de jugar, entra al partido y toca <b>“Cerrar y cobrar”</b>: se carga el precio a cada jugador.</p>`;
+}
+function formPartido(p) {
+  const c = S.d.config;
+  return `<div class="grid2"><label>Fecha<input id="n_fecha" type="date" value="${p.fecha}"></label>
+      <label>Hora<input id="n_hora" type="time" value="${esc(p.hora)}"></label></div>
+    <label>Lugar<input id="n_lugar" maxlength="80" value="${esc(p.lugar || '')}" placeholder="Ej: Cancha 2"></label>
+    <div class="grid2"><label>Costo cancha${inputMonto('n_costo', p.costoTotal, 'oninput="A.calcPrecio()"')}</label>
+      <label>Cupo<input id="n_cupo" type="text" inputmode="numeric" value="${p.cupo}" oninput="A.hintPrecio()"></label></div>
+    <label>Precio por jugador <span class="small">(costo ÷ ${c.dividirEntre}, redondeado a $${c.redondeo})</span>${inputMonto('n_precio', p.precio, 'oninput="A.hintPrecio()"')}</label>
+    <p class="small mute" id="n_hint" style="margin:6px 0 0"></p>
+    <label>Nota (opcional)<input id="n_nota" maxlength="200" value="${esc(p.nota || '')}" placeholder="Ej: traer camiseta blanca y oscura"></label>`;
+}
+A.calcPrecio = () => { const c = entero(val('n_costo')); if (c > 0) document.getElementById('n_precio').value = precioDe(c); A.hintPrecio(); };
+A.hintPrecio = () => {
+  const h = document.getElementById('n_hint'); if (!h) return;
+  const cupo = entero(val('n_cupo')), precio = entero(val('n_precio')), costo = entero(val('n_costo'));
+  h.innerHTML = cupo && precio ? 'Si juegan ' + cupo + ': ' + cuentaCancha(cupo, precio, costo) : '';
+};
+const datosForm = () => ({ fecha: val('n_fecha'), hora: val('n_hora'), lugar: val('n_lugar'), costoTotal: val('n_costo'), cupo: val('n_cupo'), precio: val('n_precio'), nota: val('n_nota') });
+A.nuevoPartido = () => {
+  const c = S.d.config;
+  const ult = S.d.partidos.slice().sort(asc).pop();
+  let fecha = ult ? addDays(ult.fecha, 7) : S.d.hoy;
+  while (fecha < S.d.hoy) fecha = addDays(fecha, 7);
+  const base = { fecha, hora: ult ? ult.hora : c.hora, lugar: ult ? ult.lugar : c.lugar, costoTotal: c.costoCancha, cupo: c.cupo,
+    precio: precioDe(c.costoCancha) };
+  modal(`<h2>Nuevo partido</h2>${formPartido(base)}
+    <button class="btn pri full big" style="margin-top:16px" onclick="act('crearPartido', datosForm())">Crear partido</button>`);
+  A.hintPrecio();
+};
+A.gestionar = pid => {
+  const p = partidoById(pid);
+  if (!p) return;
+  const L = insOf(pid);
+  const activos = L.filter(i => i.estado === 'titular' || i.estado === 'espera');
+  const libres = S.d.jugadores.filter(j => j.activo === 'si' && !activos.some(i => i.jugadorId === j.id)).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const etq = { titular: '', espera: '<span class="pill pend">espera</span>', cancelado_tarde: '<span class="pill rech">canceló hoy</span>', cancelado: '<span class="pill">canceló</span>' };
+  modal(`<h2>${fechaLarga(p.fecha)} · ${esc(p.hora)}</h2><p class="mute">${activos.filter(i => i.estado === 'titular').length}/${p.cupo} titulares · ${money(p.precio)} c/u</p>
+    <button class="btn pri full big" onclick="A.cerrar('${pid}')">✅ Cerrar y cobrar</button>
+    <h3 class="sec">Inscritos</h3><div class="list" style="padding:0">${L.length ? L.map(i => `<div class="li"><div class="grow">${esc(i.nombre)} ${etq[i.estado]}</div>
+      ${i.estado === 'titular' || i.estado === 'espera' ? `<button class="btn sm" onclick="act('adminQuitar',{partidoId:'${pid}',jugadorId:'${i.jugadorId}'},()=>A.gestionar('${pid}'))">Quitar</button>` : ''}</div>`).join('') : '<p class="mute">Nadie anotado todavía.</p>'}</div>
+    ${libres.length ? `<label>Anotar a un jugador</label><div class="row"><select id="g_add" class="grow">${libres.map(j => `<option value="${j.id}">${esc(j.nombre)}</option>`).join('')}</select>
+      <button class="btn" style="margin-top:6px" onclick="act('adminInscribir',{partidoId:'${pid}',jugadorId:val('g_add')},()=>A.gestionar('${pid}'))">Anotar</button></div>` : ''}
+    <details style="margin-top:14px"><summary>Editar datos del partido</summary>${formPartido(p)}
+      <button class="btn full" style="margin-top:12px" onclick="act('editarPartido', Object.assign({id:'${pid}'}, datosForm()), ()=>A.gestionar('${pid}'))">Guardar cambios</button></details>
+    <button class="btn red full" style="margin-top:14px" onclick="A.suspender('${pid}')">🚫 Suspender partido</button>`);
+  A.hintPrecio();
+};
+A.cerrar = pid => {
+  const p = partidoById(pid);
+  const orden = { titular: 0, cancelado_tarde: 1, espera: 2, cancelado: 3 };
+  const L = insOf(pid).sort((a, b) => orden[a.estado] - orden[b.estado]);
+  const lbl = { titular: 'Jugó (o no vino sin avisar)', cancelado_tarde: 'Canceló el mismo día', espera: 'Quedó en lista de espera', cancelado: 'Canceló con anticipación' };
+  modal(`<h2>Cerrar y cobrar</h2><p class="mute">Marca a quién se le cobra <b>${money(p.precio)}</b>. Ya vienen marcados los titulares y los que cancelaron el mismo día.</p>
+    <div class="list" style="padding:0">${L.map(i => `<label class="li" style="margin:0;color:var(--ink);font-weight:400"><input type="checkbox" class="cb" value="${i.jugadorId}" ${i.estado === 'titular' || i.estado === 'cancelado_tarde' ? 'checked' : ''} onchange="A.totCierre(${p.precio},${p.costoTotal || 0})">
+      <div class="grow"><div class="t">${esc(i.nombre)}</div><div class="small mute">${lbl[i.estado]}</div></div></label>`).join('')}</div>
+    <p id="c_tot" class="center"></p>
+    <button class="btn pri full big" onclick="act('cerrarPartido',{id:'${pid}',cobrar:[...document.querySelectorAll('.cb:checked')].map(e=>e.value)})">Confirmar cierre</button>
+    <p class="small mute center">Esto no se puede deshacer, pero puedes anular cargos individuales desde la ficha del jugador.</p>`);
+  A.totCierre(p.precio, p.costoTotal);
+};
+A.totCierre = (precio, costo) => {
+  const n = document.querySelectorAll('.cb:checked').length;
+  document.getElementById('c_tot').innerHTML = `Se cobrará a ${n} jugador${n === 1 ? '' : 'es'}:<br>${cuentaCancha(n, precio, costo || 0)}`;
+};
+A.suspender = async pid => { if (await ask('¿Suspender partido?', 'No se cobrará a nadie y desaparecerá de los partidos abiertos.', 'Suspender', true)) act('suspenderPartido', { id: pid }); };
+
+/* ---------- ajustes ---------- */
+function admAjustes() {
+  const c = S.d.config;
+  const inv = `⚽ Únete a ${c.nombreGrupo} en Paga la Cancha para anotarte a los partidos y pagar:\n${appUrl()}\n\nCódigo del grupo: ${c.codigoGrupo}`;
+  return `<div class="card"><b>Invitar jugadores</b><p class="small mute">Comparte el link y el código. Sin el código nadie puede crear cuenta.</p>
+      <a class="btn pri full" style="display:block;text-align:center;text-decoration:none" target="_blank" href="${wa(inv)}">💬 Invitar por WhatsApp</a></div>
+    <div class="card">
+      <label>Nombre del grupo<input id="s_nombre" maxlength="40" value="${esc(c.nombreGrupo)}"></label>
+      <label>Código del grupo<input id="s_cod" maxlength="30" value="${esc(c.codigoGrupo)}" autocapitalize="off"></label>
+      <div class="grid2"><label>Costo cancha${inputMonto('s_costo', c.costoCancha, 'oninput="A.hintConfig()"')}</label>
+        <label>Dividir entre<input id="s_div" type="text" inputmode="numeric" value="${c.dividirEntre}" oninput="A.hintConfig()"></label></div>
+      <label>Redondear precio hacia arriba a<select id="s_red" onchange="A.hintConfig()">${[...new Set([1, 10, 50, 100, 500, 1000, c.redondeo || 1])].sort((a, b) => a - b).map(r =>
+        `<option value="${r}" ${r === c.redondeo ? 'selected' : ''}>${r === 1 ? 'Sin redondeo ($1)' : money(r)}</option>`).join('')}</select></label>
+      <p class="small mute" id="s_hint" style="margin:8px 0 0"></p>
+      <div class="grid2"><label>Cupo por partido<input id="s_cupo" type="text" inputmode="numeric" value="${c.cupo}"></label>
+        <label>Hora habitual<input id="s_hora" type="time" value="${esc(c.hora)}"></label></div>
+      <label>Lugar habitual<input id="s_lugar" maxlength="80" value="${esc(c.lugar)}"></label>
+      <label>Datos para transferir<textarea id="s_datos" rows="5" maxlength="500" placeholder="Banco, tipo y número de cuenta, RUT, nombre, correo">${esc(c.datosTransferencia)}</textarea></label>
+      <button class="btn pri full" style="margin-top:14px" onclick="A.guardarConfig()">Guardar</button></div>`;
+}
+A.hintConfig = () => {
+  const h = document.getElementById('s_hint'); if (!h) return;
+  const cfg = { dividirEntre: entero(val('s_div')) || 1, redondeo: entero(val('s_red')) || 1 }, costo = entero(val('s_costo'));
+  const precio = precioDe(costo, cfg);
+  h.innerHTML = `Precio por jugador: <b>${money(precio)}</b><br>Si juegan ${cfg.dividirEntre}: ${cuentaCancha(cfg.dividirEntre, precio, costo)}`;
+};
+A.guardarConfig = () => act('guardarConfig', { config: {
+  nombreGrupo: val('s_nombre'), codigoGrupo: val('s_cod'), costoCancha: val('s_costo'), dividirEntre: val('s_div'), redondeo: val('s_red'),
+  cupo: val('s_cupo'), hora: val('s_hora'), lugar: val('s_lugar'), datosTransferencia: document.getElementById('s_datos').value
+} });
+
+/* =====================================================================
+ *  Arranque
+ * ===================================================================== */
+function loadScript(src) {
+  return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('No se pudo cargar ' + src)); document.head.appendChild(s); });
+}
+// Chrome avisa que la app se puede instalar → mostramos nuestro botón "Instalar".
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!$('#modal').classList.contains('on')) render(); });
+addEventListener('appinstalled', () => { installEvt = null; toast('App instalada ✅'); render(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && S.token && Date.now() - S.lastLoad > 20000 && !$('#modal').classList.contains('on')) load(true);
+});
+(async function start() {
+  if ('serviceWorker' in navigator && /^https:|localhost/.test(location.href)) navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (DEMO) {
+    try { await loadScript('demo.js'); await loadScript('backend.js'); }
+    catch (e) { $('#app').innerHTML = `<div class="splash">${esc(e.message)}</div>`; return; }
+    const q = new URLSearchParams(location.search);
+    if (q.get('as')) {
+      const adm = q.get('as') === 'admin';
+      try { const r = await call('login', { nombre: adm ? 'Jonathan' : 'Jugador Demo', telefono: adm ? '911111111' : '922222222' }); setToken(r.token); } catch (e) { }
+    }
+    if (q.get('tab')) S.tab = q.get('tab');
+    if (q.get('adm')) S.adm = q.get('adm');
+  }
+  await load();
+})();
+</script>
+</body>
+</html>
