@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f7a3d">
+<meta name="theme-color" content="#0C7BDC">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Paga la Cancha">
+<meta name="apple-mobile-web-app-title" content="PLP">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Paga la Cancha</title>
+<title>PLP: Paga la Pichanga</title>
 <script>
 /* =================== CONFIGURACIÓN =================== */
 // Pega aquí la URL de tu Apps Script (termina en /exec).
@@ -22,24 +22,25 @@ const CODIGO_PAIS = '56';                              // para links de WhatsApp
 /* ===================================================== */
 </script>
 <style>
+/* Colores: 3 paletas (Perfil → Colores). --bg fondo · --pri color del tema · --priInk versión legible
+   del tema para texto sobre blanco · --onPri texto sobre el tema · --bgInk texto directo sobre el fondo. */
 :root{
-  --bg:#f2f5f1;--card:#fff;--ink:#14201a;--mute:#65736a;--line:#e2e8e3;
-  --pri:#0f7a3d;--pri2:#0b5f2f;--priSoft:#e2f3e8;
+  color-scheme:light;
+  --card:#fff;--field:#f3f4f6;--ink:#16202a;--mute:#5f6b76;--line:#e1e5ea;
+  --bg:#FFC20A;--bgInk:#3d2e00;--pri:#0C7BDC;--pri2:#0A5FAD;--priInk:#0A69BC;--priSoft:#e3f0fc;--onPri:#fff;
   --red:#c62828;--redSoft:#fdecec;--blue:#1c5cb8;--blueSoft:#e8f0fc;--amber:#9a5b00;--amberSoft:#fff3dc;
-  --r:18px;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05);
+  --r:18px;--shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.08);
   --safeB:env(safe-area-inset-bottom,0px);--safeT:env(safe-area-inset-top,0px);
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0d1310;--card:#161f1a;--ink:#e6eee8;--mute:#93a49a;--line:#25312a;
-  --priSoft:#16351f;--redSoft:#3a1b1b;--blueSoft:#172840;--amberSoft:#382a10;--red:#ef6b6b;--blue:#7fb0f5;--amber:#f0b35a;
-  --shadow:none}}
+:root[data-pal="2"]{--bg:#E1BE6A;--bgInk:#3b2a06;--pri:#40B0A6;--pri2:#2F8C83;--priInk:#2A7A73;--priSoft:#ddf2f0;--onPri:#10231f}
+:root[data-pal="3"]{--bg:#DCDCDC;--bgInk:#2b2f33;--pri:#1A85FF;--pri2:#0F64C8;--priInk:#0F6AD6;--priSoft:#e2eeff;--onPri:#fff}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{margin:0;line-height:1.2}
 .splash{min-height:100vh;display:grid;place-items:center;color:var(--mute)}
 /* barra superior */
-.top{position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;
+.top{position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--pri),var(--pri2));color:var(--onPri);
   padding:calc(12px + var(--safeT)) 16px 12px;display:flex;align-items:center;gap:10px}
 .top h1{font-size:18px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .ic{background:rgba(255,255,255,.15);border:0;border-radius:12px;width:38px;height:38px;display:grid;place-items:center;cursor:pointer}
@@ -55,39 +56,39 @@ nav{position:fixed;bottom:0;left:0;right:0;z-index:5;background:var(--card);bord
 nav button{flex:1;border:0;background:none;padding:6px 2px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px;
   font-size:12px;color:var(--mute);cursor:pointer;position:relative}
 nav button .e{font-size:22px;line-height:1;filter:grayscale(1);opacity:.7}
-nav button.on{color:var(--pri);font-weight:700}
+nav button.on{color:var(--priInk);font-weight:700}
 nav button.on .e{filter:none;opacity:1}
 .badge{position:absolute;top:2px;left:calc(50% + 6px);background:var(--red);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 6px}
 /* tarjetas */
 .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;border:1px solid var(--line)}
-.sec{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:22px 4px 8px}
+.sec{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--bgInk);font-weight:750;margin:22px 4px 8px}
+.card .sec,#modal .sec{color:var(--mute);font-weight:400}
+main>p.mute,.login>p.mute,.brand p.mute{color:var(--bgInk);opacity:.9}
 .mute{color:var(--mute)}.small{font-size:13px}.center{text-align:center}
 .row{display:flex;align-items:center;gap:10px}.grow{flex:1;min-width:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
-.chip{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
-.chip.g{background:var(--priSoft);border-color:transparent;color:var(--pri);font-weight:600}
-@media (prefers-color-scheme:dark){.chip.g{color:#7fd8a1}}
+.chip{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--field);border:1px solid var(--line)}
+.chip.g{background:var(--priSoft);border-color:transparent;color:var(--priInk);font-weight:600}
 /* botones */
-.btn{border:0;border-radius:14px;padding:12px 16px;font-weight:650;cursor:pointer;background:var(--bg);border:1px solid var(--line)}
-.btn.pri{background:var(--pri);color:#fff;border-color:var(--pri)}
+.btn{border:0;border-radius:14px;padding:12px 16px;font-weight:650;cursor:pointer;background:var(--field);border:1px solid var(--line)}
+.btn.pri{background:var(--pri);color:var(--onPri);border-color:var(--pri)}
 .btn.big{padding:16px;font-size:18px}
 .btn.full{width:100%}
 .btn.red{background:var(--redSoft);color:var(--red);border-color:transparent}
 .btn.sm{padding:7px 11px;font-size:14px;border-radius:11px}
-.btn.link{background:none;border:0;color:var(--pri);padding:6px}
+.btn.link{background:none;border:0;color:var(--priInk);padding:6px}
 .btns{display:flex;gap:8px;margin-top:12px}.btns .btn{flex:1}
 /* partido */
 .pt-day{font-size:22px;font-weight:800;letter-spacing:-.01em}
-.pt-when{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--pri)}
-@media (prefers-color-scheme:dark){.pt-when{color:#7fd8a1}}
-.meter{height:10px;background:var(--bg);border-radius:99px;overflow:hidden;margin:6px 0 2px;border:1px solid var(--line)}
+.pt-when{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--priInk)}
+.meter{height:10px;background:var(--field);border-radius:99px;overflow:hidden;margin:6px 0 2px;border:1px solid var(--line)}
 .meter i{display:block;height:100%;background:var(--pri);border-radius:99px}
 .status{border-radius:14px;padding:10px 12px;margin:12px 0;font-weight:600}
 .status.ok{background:var(--priSoft)}.status.warn{background:var(--amberSoft);color:var(--amber)}.status.bad{background:var(--redSoft);color:var(--red)}
 ol.roster{margin:8px 0 0;padding:0;list-style:none;counter-reset:n;columns:2;column-gap:14px}
 ol.roster li{counter-increment:n;padding:6px 0;border-bottom:1px dashed var(--line);break-inside:avoid;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 ol.roster li::before{content:counter(n) ".";display:inline-block;width:26px;color:var(--mute);font-variant-numeric:tabular-nums}
-ol.roster li.me{font-weight:700;color:var(--pri)}
+ol.roster li.me{font-weight:700;color:var(--priInk)}
 ol.roster li.free{color:var(--mute);font-style:italic}
 ol.roster li.x{text-decoration:line-through;color:var(--mute)}
 .sub{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-top:14px}
@@ -99,8 +100,7 @@ details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
 .li.tap{cursor:pointer}
 .li .t{font-weight:600}
 .amt{font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
-.amt.neg{color:var(--red)}.amt.pos{color:var(--pri)}.amt.inf{color:var(--blue)}
-@media (prefers-color-scheme:dark){.amt.pos{color:#7fd8a1}}
+.amt.neg{color:var(--red)}.amt.pos{color:var(--priInk)}.amt.inf{color:var(--blue)}
 .amt.strike{text-decoration:line-through;color:var(--mute)}
 .pill{font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:4px}
 .pill.pend{background:var(--amberSoft);color:var(--amber)}.pill.rech,.pill.anul{background:var(--redSoft);color:var(--red)}
@@ -108,12 +108,11 @@ details summary{cursor:pointer;color:var(--mute);font-weight:600;padding:6px 0}
 .hero{border-radius:22px;padding:22px;text-align:center;margin-bottom:14px}
 .hero .lbl{font-weight:700;text-transform:uppercase;font-size:13px;letter-spacing:.08em}
 .hero .big{font-size:42px;font-weight:850;letter-spacing:-.02em;margin:4px 0}
-.hero.bad{background:var(--redSoft);color:var(--red)}.hero.ok{background:var(--priSoft);color:var(--pri)}.hero.inf{background:var(--blueSoft);color:var(--blue)}
-@media (prefers-color-scheme:dark){.hero.ok{color:#7fd8a1}}
-pre.datos{white-space:pre-wrap;font:inherit;margin:8px 0;background:var(--bg);padding:12px;border-radius:12px}
+.hero.bad{background:var(--redSoft);color:var(--red)}.hero.ok{background:var(--priSoft);color:var(--priInk)}.hero.inf{background:var(--blueSoft);color:var(--blue)}
+pre.datos{white-space:pre-wrap;font:inherit;margin:8px 0;background:var(--field);padding:12px;border-radius:12px}
 /* formularios */
 label{display:block;font-size:14px;font-weight:600;color:var(--mute);margin:12px 0 0}
-input,select,textarea{display:block;width:100%;margin-top:6px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:16px;color:var(--ink)}
+input,select,textarea{display:block;width:100%;margin-top:6px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--field);font-size:16px;color:var(--ink)}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:-1px}
 .tel{display:flex;margin-top:6px}
 .tel span{display:grid;place-items:center;padding:0 12px;background:var(--line);border:1px solid var(--line);border-radius:12px 0 0 12px;font-weight:700;color:var(--ink)}
@@ -121,7 +120,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-off
 .install{display:flex;align-items:center;gap:12px;background:var(--priSoft);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
 .install .e{font-size:28px}
 input[type=checkbox]{width:22px;height:22px;margin:0;accent-color:var(--pri);flex:none}
-.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;margin-top:6px}
+.seg{display:flex;background:var(--field);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;margin-top:6px}
 .seg button{flex:1;border:0;background:none;padding:10px 6px;border-radius:10px;font-weight:600;color:var(--mute);cursor:pointer;font-size:15px;position:relative}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .seg .badge{top:-4px;left:auto;right:4px}
@@ -129,9 +128,15 @@ input[type=checkbox]{width:22px;height:22px;margin:0;accent-color:var(--pri);fle
 .prev img{max-width:100%;max-height:220px;border-radius:12px;margin-top:10px;display:block}
 /* login */
 .login{max-width:420px;margin:0 auto;padding:calc(40px + var(--safeT)) 18px 40px}
-.brand{text-align:center;margin-bottom:20px}
-.brand svg{width:84px;height:84px}
-.brand h1{font-size:30px;margin-top:8px;letter-spacing:-.02em}
+.brand{text-align:center;margin-bottom:20px;color:var(--bgInk)}
+.logo{display:block;margin:0 auto;width:min(260px,72vw);height:auto;background:#fff;border-radius:22px;padding:6px;box-shadow:var(--shadow)}
+.brand h1{font-size:28px;margin-top:12px;letter-spacing:-.02em}
+.top .mini{width:34px;height:34px;border-radius:9px;background:#fff;object-fit:contain;padding:2px;flex:none}
+.pals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pal{border:2px solid var(--line);border-radius:14px;padding:6px;background:var(--card);cursor:pointer;text-align:center;font-size:13px;font-weight:650}
+.pal.on{border-color:var(--ink)}
+.pal i{display:block;height:44px;border-radius:9px;margin-bottom:5px;position:relative}
+.pal i b{position:absolute;left:18%;right:18%;bottom:8px;height:14px;border-radius:7px}
 .demo{background:var(--amberSoft);color:var(--amber);border-radius:var(--r);padding:14px;margin-top:14px;font-size:14px}
 /* modal */
 #modal{position:fixed;inset:0;z-index:20;display:none}
@@ -159,19 +164,33 @@ input[type=checkbox]{width:22px;height:22px;margin:0;accent-color:var(--pri);fle
 <script>
 'use strict';
 /* =====================================================================
- *  PAGA LA CANCHA · App
+ *  PLP: PAGA LA PICHANGA · App
  * ===================================================================== */
 const DEMO = !API_URL || /[?&]demo\b/.test(location.search);
-const TK = DEMO ? 'plc_demo_token' : 'plc_token';
+const TK = DEMO ? 'plp_demo_token' : 'plc_token';   // 'plc_token': así nadie pierde su sesión con el cambio de nombre
 const S = { token: localStorage.getItem(TK) || '', d: null, tab: 'partidos', adm: 'pagos', lastLoad: 0 };
 const A = {};          // acciones llamadas desde onclick
 let FILE = null;       // comprobante elegido en el formulario abierto
 let installEvt = null;
 let loginMode = 'in';
 
-const LOGO = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="#fff" stroke="#0b5f2f" stroke-width="4"/>
-<path d="M32 20l9.5 6.9-3.6 11.1H26.1l-3.6-11.1z" fill="#14201a"/>
-<path d="M32 20V7M41.5 26.9l12-4M37.9 38l7.4 10.3M26.1 38l-7.4 10.3M22.5 26.9l-12-4" stroke="#14201a" stroke-width="3.2" fill="none" stroke-linecap="round"/></svg>`;
+const APP = 'PLP: Paga la Pichanga';
+const LOGO = `<img class="logo" src="logo.png" alt="PLP · Paga la Pichanga">`;
+
+/* ---------- paletas de color (se guardan en este celular) ---------- */
+const PALETAS = {
+  1: { nombre: 'Amarillo', bg: '#FFC20A', pri: '#0C7BDC' },
+  2: { nombre: 'Arena', bg: '#E1BE6A', pri: '#40B0A6' },
+  3: { nombre: 'Gris', bg: '#DCDCDC', pri: '#1A85FF' }
+};
+function aplicarPaleta(n) {
+  n = PALETAS[n] ? String(n) : '1';
+  document.documentElement.dataset.pal = n;
+  document.querySelector('meta[name=theme-color]').setAttribute('content', PALETAS[n].pri);
+  return n;
+}
+let PAL = aplicarPaleta(localStorage.getItem('plp_paleta'));
+A.paleta = n => { PAL = aplicarPaleta(n); localStorage.setItem('plp_paleta', PAL); render(); };
 
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
@@ -346,10 +365,10 @@ const asc = (a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora);
 function render() {
   const app = $('#app');
   if (!S.token) { app.innerHTML = viewLogin(); return; }
-  if (!S.d) { app.innerHTML = `<div class="splash"><div class="center">${LOGO.replace('<svg', '<svg width="64" height="64"')}<p>Cargando…</p></div></div>`; return; }
+  if (!S.d) { app.innerHTML = `<div class="splash"><div class="center">${LOGO.replace('class="logo"', 'class="logo" style="width:150px"')}<p>Cargando…</p></div></div>`; return; }
   if (S.tab === 'admin' && !isAdmin()) S.tab = 'partidos';
   const views = { partidos: viewPartidos, cuenta: viewCuenta, admin: viewAdmin, perfil: viewPerfil };
-  app.innerHTML = `<header class="top"><h1>${esc(S.d.config.nombreGrupo)} ${DEMO ? '<span class="tag">DEMO</span>' : ''}</h1>
+  app.innerHTML = `<header class="top"><img class="mini" src="icon-192.png" alt=""><h1>${esc(S.d.config.nombreGrupo)} ${DEMO ? '<span class="tag">DEMO</span>' : ''}</h1>
       <button class="ic" onclick="load()" aria-label="Actualizar">⟳</button></header>
     <main>${views[S.tab]()}</main>${viewNav()}`;
   if (S.tab === 'admin' && S.adm === 'ajustes') A.hintConfig();
@@ -366,7 +385,7 @@ A.tab = t => { S.tab = t; render(); scrollTo(0, 0); };
 function viewLogin() {
   const reg = loginMode === 'reg';
   return `<div class="login">
-    <div class="brand">${LOGO}<h1>Paga la Cancha</h1><p class="mute">Inscripciones y pagos del fútbol</p></div>
+    <div class="brand">${LOGO}<h1>Paga la Pichanga</h1><p class="mute">Inscripciones y pagos de la pichanga</p></div>
     <div class="seg" style="margin-bottom:14px">
       <button class="${reg ? '' : 'on'}" onclick="A.loginMode('in')">Ingresar</button>
       <button class="${reg ? 'on' : ''}" onclick="A.loginMode('reg')">Crear cuenta</button></div>
@@ -391,7 +410,7 @@ function campoTel(id, valor, enter) {
 }
 function fmtTel(t) {
   const m = String(t || '').match(/^56(\d)(\d{4})(\d{4})$/);
-  return m ? `+56 ${m[1]} ${m[2]} ${m[3]}` : String(t || '');
+  return m ? `+56 ${m[1]} ${m[2]} ${m[3]}` : (t ? String(t) : 'sin teléfono');
 }
 const tel9 = t => String(t || '').replace(/^56(?=\d{9}$)/, '');
 A.loginMode = m => { loginMode = m; render(); };
@@ -437,8 +456,9 @@ function viewPartidos() {
       const mia = insOf(p.id).find(i => i.jugadorId === S.d.me.id);
       const n = insOf(p.id).filter(i => i.estado === 'titular').length;
       const yo = mia ? { titular: 'Jugaste', cancelado_tarde: 'Cancelaste tarde', espera: 'En espera', cancelado: 'Cancelaste' }[mia.estado] : '';
-      return `<div class="li"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}</div>
-        <div class="small mute">${p.estado === 'suspendido' ? '🚫 Suspendido' : n + ' jugadores · ' + money(p.precio)}${yo ? ' · ' + yo : ''}</div></div></div>`;
+      const tap = isAdmin() ? ` tap" onclick="A.gestionar('${p.id}')` : p.datosTransferencia ? ` tap" onclick="A.verDatos('${p.id}')` : '';
+      return `<div class="li${tap}"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}</div>
+        <div class="small mute">${p.estado === 'suspendido' ? '🚫 Suspendido' : n + ' jugadores · ' + money(p.precio)}${yo ? ' · ' + yo : ''}</div></div>${tap ? '<span class="mute">›</span>' : ''}</div>`;
     }).join('') + `</div>`;
   }
   return h;
@@ -451,11 +471,11 @@ function cardPartido(p) {
   const started = empezo(p), lleno = tit.length >= p.cupo, libres = Math.max(0, p.cupo - tit.length);
   const w = started ? 'Jugado · pendiente de cierre' : cuando(p.fecha);
   let status = '';
-  if (mia && mia.estado === 'titular') status = `<div class="status ok">✅ Estás anotado</div>`;
-  else if (mia && mia.estado === 'espera') status = `<div class="status warn">⏳ Estás en lista de espera (#${esp.indexOf(mia) + 1})</div>`;
+  if (mia && mia.estado === 'titular') status = `<div class="status ok">✅ Estás anotado · ${money(p.precio)} sumados a tu cuenta</div>`;
+  else if (mia && mia.estado === 'espera') status = `<div class="status warn">⏳ Estás en lista de espera (#${esp.indexOf(mia) + 1}) · se cobra sólo si entras</div>`;
   else if (mia && mia.estado === 'cancelado_tarde') status = `<div class="status bad">⚠️ Cancelaste el mismo día: igual debes pagar ${money(p.precio)}</div>`;
   let accion;
-  if (started) accion = `<p class="mute small center">El partido ya comenzó.${isAdmin() ? ' Ciérralo para cobrar.' : ''}</p>`;
+  if (started) accion = `<p class="mute small center">El partido ya comenzó.${isAdmin() ? ' Ciérralo para confirmar quién paga.' : ''}</p>`;
   else if (mia && (mia.estado === 'titular' || mia.estado === 'espera')) accion = `<button class="btn red full" onclick="A.cancelar('${p.id}')">Cancelar mi cupo</button>`;
   else accion = `<button class="btn pri full big" onclick="A.anotar('${p.id}')">${lleno ? '⏳ Anotarme en lista de espera' : '⚽ Me anoto'}</button>`;
   const li = (i, cls) => `<li class="${i.jugadorId === me ? 'me ' : ''}${cls || ''}">${esc(i.nombre)}${i.jugadorId === me ? ' (tú)' : ''}</li>`;
@@ -473,6 +493,8 @@ function cardPartido(p) {
     <ol class="roster">${tit.map(i => li(i)).join('')}${'<li class="free">libre</li>'.repeat(libres)}</ol>
     ${esp.length ? `<div class="sub">Lista de espera</div><ol class="roster">${esp.map(i => li(i)).join('')}</ol>` : ''}
     ${tarde.length ? `<div class="sub">Cancelaron el mismo día (pagan igual)</div><ol class="roster">${tarde.map(i => li(i, 'x')).join('')}</ol>` : ''}
+    ${p.datosTransferencia ? `<details style="margin-top:10px"><summary>🏦 Datos para transferir</summary><pre class="datos">${esc(p.datosTransferencia)}</pre>
+      <button class="btn sm" onclick="A.copiar(partidoById('${p.id}').datosTransferencia)">📋 Copiar datos</button></details>` : ''}
     <div class="btns"><button class="btn sm" onclick="A.compartir('${p.id}')">📲 Compartir lista</button>
       ${isAdmin() ? `<button class="btn sm" onclick="A.gestionar('${p.id}')">🛠️ Gestionar</button>` : ''}</div>
   </div>`;
@@ -483,7 +505,8 @@ A.cancelar = async pid => {
   const mia = insOf(pid).find(i => i.jugadorId === S.d.me.id && (i.estado === 'titular' || i.estado === 'espera'));
   const tarde = mia && mia.estado === 'titular' && S.d.hoy >= p.fecha;
   const ok = await ask(tarde ? '¿Cancelar hoy?' : '¿Cancelar tu cupo?',
-    tarde ? `Hoy es el día del partido: si cancelas <b>igual debes pagar ${money(p.precio)}</b>.` : 'Tu cupo quedará libre para otro jugador.',
+    tarde ? `Hoy es el día del partido: si cancelas <b>igual debes pagar ${money(p.precio)}</b>.`
+      : `Tu cupo quedará libre para otro jugador${mia.estado === 'titular' ? ` y se anulará el cobro de ${money(p.precio)}` : ''}.`,
     'Sí, cancelar', true);
   if (ok) act('cancelar', { partidoId: pid });
 };
@@ -518,18 +541,38 @@ function rowMov(m, adminView) {
         ${adminView && !muerto ? `<button class="btn sm" onclick="A.anular('${m.id}','${m.jugadorId}')">Anular</button>` : ''}</div>` : ''}</div>
     <div class="amt ${muerto ? 'strike' : cargo ? 'neg' : 'pos'}">${cargo ? '−' : '+'}${money(m.monto)}</div></div>`;
 }
+/** Datos para transferir que le sirven al jugador: los de los partidos que tiene cobrados
+ *  (agrupados si se repiten). Si ningún partido tiene datos, los generales de Ajustes. */
+function datosParaMi() {
+  const grupos = [];
+  const cobrados = S.d.misMovimientos.filter(m => m.tipo === 'cargo' && m.estado === 'confirmado' && m.partidoId)
+    .map(m => partidoById(m.partidoId)).filter(p => p && p.datosTransferencia).sort((a, b) => asc(b, a));
+  cobrados.forEach(p => {
+    const g = grupos.find(x => x.texto === p.datosTransferencia);
+    if (g) g.partidos.push(p); else grupos.push({ texto: p.datosTransferencia, partidos: [p] });
+  });
+  if (!grupos.length && S.d.config.datosTransferencia) grupos.push({ texto: S.d.config.datosTransferencia, partidos: [] });
+  return grupos;
+}
 function viewCuenta() {
-  const s = S.d.saldo, c = S.d.config;
+  const s = S.d.saldo;
   const movs = S.d.misMovimientos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+  S.datos = datosParaMi();
   return heroSaldo(s) + `
     <button class="btn pri full big" onclick="A.pagar()">💸 Informar un pago</button>
-    ${c.datosTransferencia ? `<h3 class="sec">Datos para transferir</h3><div class="card"><pre class="datos">${esc(c.datosTransferencia)}</pre>
-      <button class="btn sm" onclick="A.copiar()">📋 Copiar datos</button></div>` : ''}
+    ${S.datos.length ? `<h3 class="sec">Datos para transferir</h3>` + S.datos.map((g, k) => `<div class="card">
+      ${g.partidos.length ? `<div class="small mute">Partido${g.partidos.length > 1 ? 's' : ''}: ${g.partidos.map(p => fechaCorta(p.fecha)).join(' · ')}</div>` : ''}
+      <pre class="datos">${esc(g.texto)}</pre><button class="btn sm" onclick="A.copiar(S.datos[${k}].texto)">📋 Copiar datos</button></div>`).join('') : ''}
     <h3 class="sec">Historial</h3>
     <div class="card list">${movs.length ? movs.map(m => rowMov(m, false)).join('') : '<p class="mute center">Aún no tienes movimientos.</p>'}</div>
-    <p class="small mute center">Cada partido jugado suma un cargo. Tus pagos se descuentan cuando el administrador los aprueba.</p>`;
+    <p class="small mute center">Cada partido al que te anotas suma un cargo (si cancelas antes del día del partido, se anula). Tus pagos se descuentan cuando el administrador los aprueba.</p>`;
 }
-A.copiar = () => { navigator.clipboard && navigator.clipboard.writeText(S.d.config.datosTransferencia).then(() => toast('Datos copiados 📋'), () => toast('No se pudo copiar', 'err')); };
+A.copiar = texto => { navigator.clipboard && navigator.clipboard.writeText(texto || '').then(() => toast('Datos copiados 📋'), () => toast('No se pudo copiar', 'err')); };
+A.verDatos = pid => {
+  const p = partidoById(pid);
+  modal(`<h2>${fechaLarga(p.fecha)}</h2><p class="mute">Datos para transferir de este partido</p><pre class="datos">${esc(p.datosTransferencia)}</pre>
+    <button class="btn pri full" onclick="A.copiar(partidoById('${pid}').datosTransferencia)">📋 Copiar datos</button>`);
+};
 A.pagar = () => {
   const d = S.d.saldo.deuda - S.d.saldo.pendiente;
   modal(`<h2>Informar un pago</h2><p class="mute small">El administrador lo revisará y quedará descontado de tu deuda.</p>
@@ -554,6 +597,9 @@ function viewPerfil() {
       <div class="t" style="font-size:20px;font-weight:750">${esc(me.nombre)}</div>
       <div class="mute">${esc(fmtTel(me.telefono))} ${me.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}</div></div></div>
       <p class="small mute">Ingresas con tu nombre y tu teléfono. Si cambias de número, avísale a un administrador.</p></div>
+    <h3 class="sec">Colores</h3><div class="card"><div class="small mute">Elige la paleta de la app (sólo cambia en este celular).</div>
+      <div class="pals">${Object.keys(PALETAS).map(n => `<button class="pal ${PAL === n ? 'on' : ''}" onclick="A.paleta('${n}')" aria-label="Paleta ${PALETAS[n].nombre}">
+        <i style="background:${PALETAS[n].bg}"><b style="background:${PALETAS[n].pri}"></b></i>${n}. ${PALETAS[n].nombre}</button>`).join('')}</div></div>
     <h3 class="sec">Instalar en el celular</h3><div class="card">
       ${instalada() ? '✅ La app ya está instalada.' : installEvt ? `<button class="btn pri full" onclick="A.instalar()">📲 Instalar app</button>`
       : embebida() ? 'Estás dentro de otra app (WhatsApp, Instagram…). Abre el link en <b>Chrome</b>: menú ⋮ → <b>“Abrir en Chrome”</b>.'
@@ -606,13 +652,19 @@ function admJugadores() {
   const deudores = js.filter(j => j.deuda > 0).length;
   return `<div class="hero ${total > 0 ? 'bad' : 'ok'}"><div class="lbl">Total por cobrar</div><div class="big">${money(total)}</div>
       <div class="small">${deudores} jugador${deudores === 1 ? '' : 'es'} con deuda</div></div>
-    <div class="btns" style="margin-bottom:14px"><button class="btn sm" onclick="A.compartirDeudas()">📲 Compartir lista de deudas</button></div>
+    <div class="btns" style="margin-bottom:14px"><button class="btn pri sm" onclick="A.nuevoJugador()">➕ Agregar jugador</button>
+      <button class="btn sm" onclick="A.compartirDeudas()">📲 Compartir deudas</button></div>
     <input placeholder="🔎 Buscar jugador" oninput="A.filtrar(this.value)">
     <div class="card list" style="margin-top:10px">${js.map(j => `<div class="li tap" data-n="${esc(j.nombre.toLowerCase())}" onclick="A.jugador('${j.id}')">
       <div class="grow"><div class="t">${esc(j.nombre)} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}${j.activo !== 'si' ? '<span class="tag">INACTIVO</span>' : ''}</div>
       <div class="small mute">${j.pendiente > 0 ? '⏳ ' + money(j.pendiente) + ' en revisión' : esc(fmtTel(j.telefono))}</div></div>
       <div class="amt ${j.deuda > 0 ? 'neg' : j.deuda < 0 ? 'inf' : 'pos'}">${j.deuda > 0 ? money(j.deuda) : j.deuda < 0 ? '+' + money(-j.deuda) : 'Al día'}</div></div>`).join('')}</div>`;
 }
+A.nuevoJugador = () => modal(`<h2>Agregar jugador</h2>
+  <p class="mute small">El jugador entra a la app con este nombre y este teléfono.</p>
+  <label>Nombre<input id="j_nombre" maxlength="40" autocomplete="off" placeholder="Como lo conocen en el grupo"></label>
+  <label>Teléfono${campoTel('j_tel', '')}</label>
+  <button class="btn pri full big" style="margin-top:16px" onclick="act('crearJugador',{nombre:val('j_nombre'),telefono:val('j_tel')},r=>A.jugador(r.id))">Agregar</button>`);
 A.filtrar = q => { q = q.toLowerCase(); document.querySelectorAll('[data-n]').forEach(e => e.style.display = e.dataset.n.includes(q) ? '' : 'none'); };
 A.compartirDeudas = () => {
   const L = S.d.jugadores.filter(j => j.deuda > 0).sort((a, b) => b.deuda - a.deuda);
@@ -656,6 +708,7 @@ A.anular = async (mid, jid) => {
 /* ---------- partidos (admin) ---------- */
 function admPartidos() {
   const abiertos = S.d.partidos.filter(p => p.estado === 'abierto').sort(asc);
+  const cerrados = S.d.partidos.filter(p => p.estado !== 'abierto').sort((a, b) => asc(b, a));
   return `<button class="btn pri full big" onclick="A.nuevoPartido()">➕ Nuevo partido</button>
     <h3 class="sec">Abiertos</h3>
     ${abiertos.length ? `<div class="card list">${abiertos.map(p => {
@@ -663,7 +716,11 @@ function admPartidos() {
       return `<div class="li tap" onclick="A.gestionar('${p.id}')"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}
         ${empezo(p) ? '<span class="pill pend">por cerrar</span>' : ''}</div><div class="small mute">${n}/${p.cupo} · ${money(p.precio)} c/u</div></div><span class="mute">›</span></div>`;
     }).join('')}</div>` : '<p class="mute center">No hay partidos abiertos.</p>'}
-    <p class="small mute">Después de jugar, entra al partido y toca <b>“Cerrar y cobrar”</b>: se carga el precio a cada jugador.</p>`;
+    <p class="small mute">El precio se carga a cada jugador cuando se anota. Puedes editar el partido hasta cerrarlo.
+      Después de jugar, entra al partido y toca <b>“Cerrar partido”</b> para confirmar quién paga.</p>
+    ${cerrados.length ? `<h3 class="sec">Cerrados y suspendidos</h3><div class="card list">${cerrados.map(p => `<div class="li tap" onclick="A.gestionar('${p.id}')">
+      <div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)} <span class="pill ${p.estado === 'cerrado' ? '' : 'anul'}">${p.estado}</span></div>
+      <div class="small mute">${p.datosTransferencia ? '🏦 Con datos para transferir' : 'Sin datos para transferir'}</div></div><span class="mute">›</span></div>`).join('')}</div>` : ''}`;
 }
 function formPartido(p) {
   const c = S.d.config;
@@ -674,22 +731,26 @@ function formPartido(p) {
       <label>Cupo<input id="n_cupo" type="text" inputmode="numeric" value="${p.cupo}" oninput="A.hintPrecio()"></label></div>
     <label>Precio por jugador <span class="small">(costo ÷ ${c.dividirEntre}, redondeado a $${c.redondeo})</span>${inputMonto('n_precio', p.precio, 'oninput="A.hintPrecio()"')}</label>
     <p class="small mute" id="n_hint" style="margin:6px 0 0"></p>
-    <label>Nota (opcional)<input id="n_nota" maxlength="200" value="${esc(p.nota || '')}" placeholder="Ej: traer camiseta blanca y oscura"></label>`;
+    <label>Nota (opcional)<input id="n_nota" maxlength="200" value="${esc(p.nota || '')}" placeholder="Ej: traer camiseta blanca y oscura"></label>
+    ${campoDatos('n_datos', p.datosTransferencia)}`;
 }
+const campoDatos = (id, v) => `<label>Datos para transferir <span class="small">(de este partido)</span><textarea id="${id}" rows="5" maxlength="500"
+  placeholder="Banco, tipo y número de cuenta, RUT, nombre, correo">${esc(v || '')}</textarea></label>`;
 A.calcPrecio = () => { const c = entero(val('n_costo')); if (c > 0) document.getElementById('n_precio').value = precioDe(c); A.hintPrecio(); };
 A.hintPrecio = () => {
   const h = document.getElementById('n_hint'); if (!h) return;
   const cupo = entero(val('n_cupo')), precio = entero(val('n_precio')), costo = entero(val('n_costo'));
   h.innerHTML = cupo && precio ? 'Si juegan ' + cupo + ': ' + cuentaCancha(cupo, precio, costo) : '';
 };
-const datosForm = () => ({ fecha: val('n_fecha'), hora: val('n_hora'), lugar: val('n_lugar'), costoTotal: val('n_costo'), cupo: val('n_cupo'), precio: val('n_precio'), nota: val('n_nota') });
+const datosForm = () => ({ fecha: val('n_fecha'), hora: val('n_hora'), lugar: val('n_lugar'), costoTotal: val('n_costo'), cupo: val('n_cupo'),
+  precio: val('n_precio'), nota: val('n_nota'), datosTransferencia: val('n_datos') });
 A.nuevoPartido = () => {
   const c = S.d.config;
   const ult = S.d.partidos.slice().sort(asc).pop();
   let fecha = ult ? addDays(ult.fecha, 7) : S.d.hoy;
   while (fecha < S.d.hoy) fecha = addDays(fecha, 7);
   const base = { fecha, hora: ult ? ult.hora : c.hora, lugar: ult ? ult.lugar : c.lugar, costoTotal: c.costoCancha, cupo: c.cupo,
-    precio: precioDe(c.costoCancha) };
+    precio: precioDe(c.costoCancha), datosTransferencia: c.datosTransferencia };
   modal(`<h2>Nuevo partido</h2>${formPartido(base)}
     <button class="btn pri full big" style="margin-top:16px" onclick="act('crearPartido', datosForm())">Crear partido</button>`);
   A.hintPrecio();
@@ -697,27 +758,45 @@ A.nuevoPartido = () => {
 A.gestionar = pid => {
   const p = partidoById(pid);
   if (!p) return;
+  if (p.estado !== 'abierto') return A.gestionarCerrado(pid);
   const L = insOf(pid);
   const activos = L.filter(i => i.estado === 'titular' || i.estado === 'espera');
   const libres = S.d.jugadores.filter(j => j.activo === 'si' && !activos.some(i => i.jugadorId === j.id)).sort((a, b) => a.nombre.localeCompare(b.nombre));
   const etq = { titular: '', espera: '<span class="pill pend">espera</span>', cancelado_tarde: '<span class="pill rech">canceló hoy</span>', cancelado: '<span class="pill">canceló</span>' };
   modal(`<h2>${fechaLarga(p.fecha)} · ${esc(p.hora)}</h2><p class="mute">${activos.filter(i => i.estado === 'titular').length}/${p.cupo} titulares · ${money(p.precio)} c/u</p>
-    <button class="btn pri full big" onclick="A.cerrar('${pid}')">✅ Cerrar y cobrar</button>
+    <div class="btns" style="margin-top:4px"><button class="btn" onclick="A.editarPartido('${pid}')">✏️ Editar partido</button>
+      <button class="btn pri" onclick="A.cerrar('${pid}')">✅ Cerrar partido</button></div>
     <h3 class="sec">Inscritos</h3><div class="list" style="padding:0">${L.length ? L.map(i => `<div class="li"><div class="grow">${esc(i.nombre)} ${etq[i.estado]}</div>
       ${i.estado === 'titular' || i.estado === 'espera' ? `<button class="btn sm" onclick="act('adminQuitar',{partidoId:'${pid}',jugadorId:'${i.jugadorId}'},()=>A.gestionar('${pid}'))">Quitar</button>` : ''}</div>`).join('') : '<p class="mute">Nadie anotado todavía.</p>'}</div>
     ${libres.length ? `<label>Anotar a un jugador</label><div class="row"><select id="g_add" class="grow">${libres.map(j => `<option value="${j.id}">${esc(j.nombre)}</option>`).join('')}</select>
       <button class="btn" style="margin-top:6px" onclick="act('adminInscribir',{partidoId:'${pid}',jugadorId:val('g_add')},()=>A.gestionar('${pid}'))">Anotar</button></div>` : ''}
-    <details style="margin-top:14px"><summary>Editar datos del partido</summary>${formPartido(p)}
-      <button class="btn full" style="margin-top:12px" onclick="act('editarPartido', Object.assign({id:'${pid}'}, datosForm()), ()=>A.gestionar('${pid}'))">Guardar cambios</button></details>
     <button class="btn red full" style="margin-top:14px" onclick="A.suspender('${pid}')">🚫 Suspender partido</button>`);
+};
+/** Editar todos los datos del partido (mientras no esté cerrado). */
+A.editarPartido = pid => {
+  const p = partidoById(pid);
+  modal(`<h2>Editar partido</h2><p class="mute small">Si cambias el precio, se actualiza el cobro de todos los anotados.</p>${formPartido(p)}
+    <div class="btns" style="margin-top:16px"><button class="btn" onclick="A.gestionar('${pid}')">Volver</button>
+      <button class="btn pri" onclick="act('editarPartido', Object.assign({id:'${pid}'}, datosForm()), ()=>A.gestionar('${pid}'))">Guardar cambios</button></div>`);
   A.hintPrecio();
+};
+/** Partido cerrado o suspendido: sólo se cambian sus datos para transferir. */
+A.gestionarCerrado = pid => {
+  const p = partidoById(pid);
+  const n = insOf(pid).filter(i => i.estado === 'titular' || i.estado === 'cancelado_tarde').length;
+  modal(`<h2>${fechaLarga(p.fecha)} · ${esc(p.hora)}</h2>
+    <p class="mute">${p.estado === 'cerrado' ? '✅ Cerrado' : '🚫 Suspendido'} · ${n} jugadores · ${money(p.precio)} c/u</p>
+    ${campoDatos('t_datos', p.datosTransferencia)}
+    <button class="btn pri full big" style="margin-top:14px" onclick="act('transferenciaPartido',{id:'${pid}',datosTransferencia:val('t_datos')})">Guardar datos para transferir</button>
+    <p class="small mute center">Un partido ${p.estado} ya no cambia de fecha, precio ni jugadores; los datos para transferir sí.</p>`);
 };
 A.cerrar = pid => {
   const p = partidoById(pid);
   const orden = { titular: 0, cancelado_tarde: 1, espera: 2, cancelado: 3 };
   const L = insOf(pid).sort((a, b) => orden[a.estado] - orden[b.estado]);
   const lbl = { titular: 'Jugó (o no vino sin avisar)', cancelado_tarde: 'Canceló el mismo día', espera: 'Quedó en lista de espera', cancelado: 'Canceló con anticipación' };
-  modal(`<h2>Cerrar y cobrar</h2><p class="mute">Marca a quién se le cobra <b>${money(p.precio)}</b>. Ya vienen marcados los titulares y los que cancelaron el mismo día.</p>
+  modal(`<h2>Cerrar partido</h2><p class="mute">Los anotados ya tienen cargado <b>${money(p.precio)}</b>. Marca quiénes pagan: vienen marcados los titulares
+    y los que cancelaron el mismo día. <b>Si desmarcas a alguien, se le anula el cobro.</b></p>
     <div class="list" style="padding:0">${L.map(i => `<label class="li" style="margin:0;color:var(--ink);font-weight:400"><input type="checkbox" class="cb" value="${i.jugadorId}" ${i.estado === 'titular' || i.estado === 'cancelado_tarde' ? 'checked' : ''} onchange="A.totCierre(${p.precio},${p.costoTotal || 0})">
       <div class="grow"><div class="t">${esc(i.nombre)}</div><div class="small mute">${lbl[i.estado]}</div></div></label>`).join('')}</div>
     <p id="c_tot" class="center"></p>
@@ -727,14 +806,14 @@ A.cerrar = pid => {
 };
 A.totCierre = (precio, costo) => {
   const n = document.querySelectorAll('.cb:checked').length;
-  document.getElementById('c_tot').innerHTML = `Se cobrará a ${n} jugador${n === 1 ? '' : 'es'}:<br>${cuentaCancha(n, precio, costo || 0)}`;
+  document.getElementById('c_tot').innerHTML = `Pagan ${n} jugador${n === 1 ? '' : 'es'}:<br>${cuentaCancha(n, precio, costo || 0)}`;
 };
-A.suspender = async pid => { if (await ask('¿Suspender partido?', 'No se cobrará a nadie y desaparecerá de los partidos abiertos.', 'Suspender', true)) act('suspenderPartido', { id: pid }); };
+A.suspender = async pid => { if (await ask('¿Suspender partido?', 'Se anula el cobro de todos los anotados y desaparece de los partidos abiertos.', 'Suspender', true)) act('suspenderPartido', { id: pid }); };
 
 /* ---------- ajustes ---------- */
 function admAjustes() {
   const c = S.d.config;
-  const inv = `⚽ Únete a ${c.nombreGrupo} en Paga la Cancha para anotarte a los partidos y pagar:\n${appUrl()}\n\nCódigo del grupo: ${c.codigoGrupo}`;
+  const inv = `⚽ Únete a ${c.nombreGrupo} en ${APP} para anotarte a los partidos y pagar:\n${appUrl()}\n\nCódigo del grupo: ${c.codigoGrupo}`;
   return `<div class="card"><b>Invitar jugadores</b><p class="small mute">Comparte el link y el código. Sin el código nadie puede crear cuenta.</p>
       <a class="btn pri full" style="display:block;text-align:center;text-decoration:none" target="_blank" href="${wa(inv)}">💬 Invitar por WhatsApp</a></div>
     <div class="card">
@@ -748,7 +827,7 @@ function admAjustes() {
       <div class="grid2"><label>Cupo por partido<input id="s_cupo" type="text" inputmode="numeric" value="${c.cupo}"></label>
         <label>Hora habitual<input id="s_hora" type="time" value="${esc(c.hora)}"></label></div>
       <label>Lugar habitual<input id="s_lugar" maxlength="80" value="${esc(c.lugar)}"></label>
-      <label>Datos para transferir<textarea id="s_datos" rows="5" maxlength="500" placeholder="Banco, tipo y número de cuenta, RUT, nombre, correo">${esc(c.datosTransferencia)}</textarea></label>
+      <label>Datos para transferir <span class="small">(se copian a cada partido nuevo; en cada partido se pueden cambiar)</span><textarea id="s_datos" rows="5" maxlength="500" placeholder="Banco, tipo y número de cuenta, RUT, nombre, correo">${esc(c.datosTransferencia)}</textarea></label>
       <button class="btn pri full" style="margin-top:14px" onclick="A.guardarConfig()">Guardar</button></div>`;
 }
 A.hintConfig = () => {
@@ -784,6 +863,7 @@ document.addEventListener('visibilitychange', () => {
       const adm = q.get('as') === 'admin';
       try { const r = await call('login', { nombre: adm ? 'Jonathan' : 'Jugador Demo', telefono: adm ? '911111111' : '922222222' }); setToken(r.token); } catch (e) { }
     }
+    if (q.get('pal')) PAL = aplicarPaleta(q.get('pal'));   // vista previa de una paleta (no se guarda)
     if (q.get('tab')) S.tab = q.get('tab');
     if (q.get('adm')) S.adm = q.get('adm');
   }
