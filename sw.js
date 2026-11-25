@@ -1,9 +1,9 @@
-/* Paga la Cancha · service worker
+/* PLP: Paga la Pichanga · service worker
  * Guarda la app para que abra rápido y funcione como app instalada.
  * Los datos siempre se piden en línea a Apps Script (no se guardan aquí).
  * Si cambias index.html, sube el número de versión para forzar la actualización. */
-const VERSION = 'plc-v2';
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
+const VERSION = 'plp-v4';
+const SHELL = ['./', './index.html', './manifest.json', './logo.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
   // Cada archivo por separado: si falta uno, el service worker igual se instala.
