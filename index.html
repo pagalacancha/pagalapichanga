@@ -153,6 +153,23 @@ input[type=checkbox]{width:22px;height:22px;margin:0;accent-color:var(--pri);fle
 #toast.err{background:var(--red)}
 .empty{text-align:center;padding:30px 16px;color:var(--mute)}
 .empty .e{font-size:44px}
+/* v2: plantilla de pagos, notificaciones, perfil */
+.top .ic{position:relative;color:inherit;font-size:17px}
+.top .ic .badge{top:-5px;left:auto;right:-5px}
+.pt-name{font-size:13px;font-weight:700;color:var(--mute);margin-bottom:2px}
+.pg{font-size:12px;margin-left:3px}
+.pill.ok{background:var(--priSoft);color:var(--priInk)}
+.pill.debe{background:var(--redSoft);color:var(--red)}
+.tag.red{background:var(--redSoft);color:var(--red)}.tag.ok{background:var(--priSoft);color:var(--priInk)}
+.resumen{display:flex;gap:8px;margin:12px 0}
+.resumen div{flex:1;border-radius:14px;padding:10px;text-align:center;background:var(--field)}
+.resumen b{display:block;font-size:22px}
+.resumen .ok{background:var(--priSoft);color:var(--priInk)}.resumen .bad{background:var(--redSoft);color:var(--red)}
+.notif{padding:12px 0;border-bottom:1px solid var(--line)}
+.notif:last-child{border-bottom:0}
+.notif.nueva .t::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:6px;vertical-align:middle}
+.edad{margin-top:6px;padding:12px 14px;border-radius:12px;background:var(--priSoft);color:var(--priInk);font-weight:700}
+.ficha{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -175,6 +192,15 @@ let installEvt = null;
 let loginMode = 'in';
 
 const APP = 'PLP: Paga la Pichanga';
+const VERSION_APP = '2.0';
+const POS_A = { defensa: 'Defensa', medio: 'Medio campo', delantero: 'Delantero' };
+const POS_B = { centro: 'Centro', derecha: 'Derecha', izquierda: 'Izquierda' };
+const PIES = { derecho: 'Derecho', izquierdo: 'Izquierdo' };
+const PAGO = {   // estado del pago de un jugador en un partido
+  pagado: { e: '✅', t: 'Pagó', c: 'ok' }, revision: { e: '⏳', t: 'En revisión', c: 'pend' },
+  parcial: { e: '◐', t: 'Pago parcial', c: 'debe' }, debe: { e: '❌', t: 'Debe', c: 'debe' }
+};
+let PUSH = 'off';      // notificaciones en este celular: 'no' (no se puede) · 'off' · 'on' · 'denegado' · 'demo'
 const LOGO = `<img class="logo" src="logo.png" alt="PLP · Paga la Pichanga">`;
 
 /* ---------- paletas de color (se guardan en este celular) ---------- */
@@ -263,7 +289,7 @@ function setToken(t) { S.token = t; if (t) localStorage.setItem(TK, t); else loc
 async function load(quiet) {
   if (!S.token) return render();
   setBusy(true);
-  try { S.d = await call('estado'); S.lastLoad = Date.now(); }
+  try { S.d = await call('estado'); S.lastLoad = Date.now(); if (PUSH === 'on') guardarSesionSW(); }
   catch (e) { if (!quiet) toast(e.message, 'err'); }
   finally { setBusy(false); render(); }
 }
@@ -358,6 +384,23 @@ const empezo = p => S.d.ahora >= p.fecha + ' ' + p.hora;
 const partidoById = id => S.d.partidos.find(p => p.id === id);
 const jugadorById = id => (S.d.jugadores || []).find(j => j.id === id);
 const asc = (a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora);
+/** Edad en años cumplidos (se calcula sola desde la fecha de nacimiento). */
+const edad = nac => {
+  if (!nac) return null;
+  const [y, m, d] = nac.split('-').map(Number), [hy, hm, hd] = S.d.hoy.split('-').map(Number);
+  return hy - y - ((hm < m || (hm === m && hd < d)) ? 1 : 0);
+};
+/** Debe más de N partidos (los pagos en revisión cuentan como pagados) y ningún admin lo habilitó. */
+const bloqueadoJ = (j, precio) => j.rol !== 'admin' && !j.permitirDeuda && (j.deuda - j.pendiente) > S.d.config.maxPartidosDeuda * (precio || S.d.config.precio);
+const yoBloqueado = p => bloqueadoJ(Object.assign({}, S.d.me, { deuda: S.d.saldo.deuda, pendiente: S.d.saldo.pendiente }), p && p.precio);
+const markPago = i => i.pago ? `<span class="pg" title="${PAGO[i.pago].t}">${PAGO[i.pago].e}</span>` : '';
+const sinLeer = () => (S.d.notificaciones || []).filter(n => !n.leida).length;
+/** "34 años · 1,78 m · 80 kg · Medio campo · Centro · Pie derecho" */
+function fichaTxt(j) {
+  const e = edad(j.nacimiento);
+  return [e != null ? e + ' años' : '', j.altura ? String(j.altura).replace('.', ',') + ' m' : '', j.peso ? String(j.peso).replace('.', ',') + ' kg' : '',
+    POS_A[j.posicionA] || '', POS_B[j.posicionB] || '', j.pie ? 'Pie ' + PIES[j.pie].toLowerCase() : ''].filter(Boolean);
+}
 
 /* =====================================================================
  *  Vistas
@@ -368,7 +411,9 @@ function render() {
   if (!S.d) { app.innerHTML = `<div class="splash"><div class="center">${LOGO.replace('class="logo"', 'class="logo" style="width:150px"')}<p>Cargando…</p></div></div>`; return; }
   if (S.tab === 'admin' && !isAdmin()) S.tab = 'partidos';
   const views = { partidos: viewPartidos, cuenta: viewCuenta, admin: viewAdmin, perfil: viewPerfil };
+  const nl = sinLeer();
   app.innerHTML = `<header class="top"><img class="mini" src="icon-192.png" alt=""><h1>${esc(S.d.config.nombreGrupo)} ${DEMO ? '<span class="tag">DEMO</span>' : ''}</h1>
+      <button class="ic" id="bell" onclick="A.notifs()" aria-label="Notificaciones">🔔${nl ? `<span class="badge">${nl}</span>` : ''}</button>
       <button class="ic" onclick="load()" aria-label="Actualizar">⟳</button></header>
     <main>${views[S.tab]()}</main>${viewNav()}`;
   if (S.tab === 'admin' && S.adm === 'ajustes') A.hintConfig();
@@ -447,18 +492,18 @@ function viewPartidos() {
   // Primero los próximos; los ya jugados que el admin aún no cierra van al final.
   const abiertos = S.d.partidos.filter(p => p.estado === 'abierto').sort((a, b) => empezo(a) - empezo(b) || asc(a, b));
   const prev = S.d.partidos.filter(p => p.estado !== 'abierto').sort((a, b) => asc(b, a));
-  let h = bannerInstalar();
+  let h = bannerInstalar() + bannerNotif();
   if (!abiertos.length) h += `<div class="card empty"><div class="e">⚽</div><p><b>No hay partidos programados</b></p>
     ${isAdmin() ? `<button class="btn pri" onclick="A.nuevoPartido()">Crear partido</button>` : '<p class="small">Cuando el administrador cree uno aparecerá aquí.</p>'}</div>`;
   h += abiertos.map(cardPartido).join('');
   if (prev.length) {
     h += `<h3 class="sec">Partidos anteriores</h3><div class="card list">` + prev.map(p => {
       const mia = insOf(p.id).find(i => i.jugadorId === S.d.me.id);
-      const n = insOf(p.id).filter(i => i.estado === 'titular').length;
+      const cob = insOf(p.id).filter(i => i.pago), pag = cob.filter(i => i.pago === 'pagado').length;
       const yo = mia ? { titular: 'Jugaste', cancelado_tarde: 'Cancelaste tarde', espera: 'En espera', cancelado: 'Cancelaste' }[mia.estado] : '';
-      const tap = isAdmin() ? ` tap" onclick="A.gestionar('${p.id}')` : p.datosTransferencia ? ` tap" onclick="A.verDatos('${p.id}')` : '';
-      return `<div class="li${tap}"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}</div>
-        <div class="small mute">${p.estado === 'suspendido' ? '🚫 Suspendido' : n + ' jugadores · ' + money(p.precio)}${yo ? ' · ' + yo : ''}</div></div>${tap ? '<span class="mute">›</span>' : ''}</div>`;
+      const miPago = mia && mia.pago ? ' ' + PAGO[mia.pago].e : '';
+      return `<div class="li tap" onclick="A.plantilla('${p.id}')"><div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)}${p.video ? ' 🎥' : ''}</div>
+        <div class="small mute">${p.estado === 'suspendido' ? '🚫 Suspendido' : `${pag}/${cob.length} pagaron · ${money(p.precio)}`}${yo ? ' · ' + yo + miPago : ''}</div></div><span class="mute">›</span></div>`;
     }).join('') + `</div>`;
   }
   return h;
@@ -477,10 +522,14 @@ function cardPartido(p) {
   let accion;
   if (started) accion = `<p class="mute small center">El partido ya comenzó.${isAdmin() ? ' Ciérralo para confirmar quién paga.' : ''}</p>`;
   else if (mia && (mia.estado === 'titular' || mia.estado === 'espera')) accion = `<button class="btn red full" onclick="A.cancelar('${p.id}')">Cancelar mi cupo</button>`;
+  else if (yoBloqueado(p)) accion = `<div class="status bad">🚫 Debes ${money(S.d.saldo.deuda - S.d.saldo.pendiente)}: más de ${S.d.config.maxPartidosDeuda} partidos.
+      Para anotarte, paga e informa tu pago (o pide a un administrador que te habilite).</div>
+    <button class="btn pri full big" onclick="A.pagar()">💸 Informar un pago</button>`;
   else accion = `<button class="btn pri full big" onclick="A.anotar('${p.id}')">${lleno ? '⏳ Anotarme en lista de espera' : '⚽ Me anoto'}</button>`;
-  const li = (i, cls) => `<li class="${i.jugadorId === me ? 'me ' : ''}${cls || ''}">${esc(i.nombre)}${i.jugadorId === me ? ' (tú)' : ''}</li>`;
+  const li = (i, cls) => `<li class="${i.jugadorId === me ? 'me ' : ''}${cls || ''}">${esc(i.nombre)}${i.jugadorId === me ? ' (tú)' : ''}${markPago(i)}</li>`;
   return `<div class="card">
     ${w ? `<div class="pt-when">${w}</div>` : ''}
+    ${p.nombrePropio ? `<div class="pt-name">${esc(p.nombrePropio)}</div>` : ''}
     <div class="pt-day">${fechaLarga(p.fecha)}</div>
     <div class="mute">🕗 ${esc(p.hora)}${p.lugar ? ' · 📍 ' + esc(p.lugar) : ''}</div>
     ${p.nota ? `<p class="small">${esc(p.nota)}</p>` : ''}
@@ -495,10 +544,63 @@ function cardPartido(p) {
     ${tarde.length ? `<div class="sub">Cancelaron el mismo día (pagan igual)</div><ol class="roster">${tarde.map(i => li(i, 'x')).join('')}</ol>` : ''}
     ${p.datosTransferencia ? `<details style="margin-top:10px"><summary>🏦 Datos para transferir</summary><pre class="datos">${esc(p.datosTransferencia)}</pre>
       <button class="btn sm" onclick="A.copiar(partidoById('${p.id}').datosTransferencia)">📋 Copiar datos</button></details>` : ''}
+    ${tit.length || tarde.length ? `<p class="small mute" style="margin:8px 0 0">✅ pagó · ⏳ en revisión · ◐ parcial · ❌ debe</p>` : ''}
     <div class="btns"><button class="btn sm" onclick="A.compartir('${p.id}')">📲 Compartir lista</button>
+      <button class="btn sm" onclick="A.plantilla('${p.id}')">💰 Pagos</button>
       ${isAdmin() ? `<button class="btn sm" onclick="A.gestionar('${p.id}')">🛠️ Gestionar</button>` : ''}</div>
   </div>`;
 }
+
+/* ---------- plantilla de pagos (solo lectura, para todos) ---------- */
+function filasPago(pid) {
+  const L = insOf(pid), cob = L.filter(i => i.pago);
+  const nocob = L.filter(i => !i.pago && (i.estado === 'titular' || i.estado === 'cancelado_tarde'));
+  const pag = cob.filter(i => i.pago === 'pagado').length, rev = cob.filter(i => i.pago === 'revision').length;
+  const falta = cob.reduce((s, i) => s + (i.debe || 0), 0);
+  return { cob, nocob, pag, rev, falta };
+}
+A.plantilla = pid => {
+  const p = partidoById(pid);
+  if (!p) return;
+  const { cob, nocob, pag, rev, falta } = filasPago(pid), me = S.d.me.id;
+  const estado = p.estado === 'abierto' ? (empezo(p) ? 'Jugado · por cerrar' : 'Abierto') : p.estado === 'cerrado' ? '✅ Cerrado' : '🚫 Suspendido';
+  const fila = i => {
+    const x = PAGO[i.pago];
+    const txt = i.pago === 'debe' || i.pago === 'parcial' ? `${x.t} ${money(i.debe)}` : x.t;
+    return `<div class="li"><div class="grow"><div class="t"${i.jugadorId === me ? ' style="color:var(--priInk)"' : ''}>${esc(i.nombre)}${i.jugadorId === me ? ' (tú)' : ''}</div>
+      ${i.estado === 'cancelado_tarde' ? '<div class="small mute">Canceló el mismo día</div>' : ''}</div><span class="pill ${x.c}">${x.e} ${txt}</span></div>`;
+  };
+  const adm = isAdmin() ? `<details style="margin-top:14px"${p.estado === 'cerrado' && !p.video ? ' open' : ''}><summary>🛠️ Opciones de administrador</summary>
+      ${p.estado === 'cerrado' ? `<label>Link del video del partido<input id="v_url" type="url" inputmode="url" maxlength="500" value="${esc(p.video)}" placeholder="https://youtube.com/…"></label>
+        <button class="btn full" style="margin-top:8px" onclick="act('videoPartido',{id:'${pid}',video:val('v_url')},()=>A.plantilla('${pid}'))">🎥 Guardar video</button>` : ''}
+      ${p.estado === 'abierto' ? `<button class="btn full" style="margin-top:8px" onclick="A.gestionar('${pid}')">🛠️ Gestionar partido</button>`
+        : `<button class="btn full" style="margin-top:8px" onclick="A.gestionarCerrado('${pid}')">🏦 Cambiar datos para transferir</button>`}</details>` : '';
+  modal(`<h2>${esc(p.nombre)}</h2>
+    <p class="mute" style="margin:0">${fechaLarga(p.fecha)} · ${esc(p.hora)}${p.lugar ? ' · 📍 ' + esc(p.lugar) : ''}</p>
+    <p class="small mute" style="margin:4px 0 0">${estado} · ${money(p.precio)} por jugador · solo lectura</p>
+    ${p.video ? `<a class="btn pri full" style="display:block;text-align:center;text-decoration:none;margin-top:12px" href="${esc(p.video)}" target="_blank" rel="noopener">🎥 Ver video del partido</a>` : ''}
+    ${p.estado === 'suspendido' ? '<p class="status ok">Partido suspendido: no se le cobra a nadie.</p>' : `
+    <div class="resumen"><div class="ok"><b>${pag}</b>pagaron</div><div><b>${rev}</b>en revisión</div><div class="${falta > 0 ? 'bad' : 'ok'}"><b>${money(falta)}</b>por cobrar</div></div>
+    <div class="list" style="padding:0">${cob.length ? cob.map(fila).join('') : '<p class="mute">Nadie tiene cobro en este partido.</p>'}</div>
+    ${nocob.length ? `<div class="sub">Sin cobro</div><p class="small mute" style="margin:4px 0">${nocob.map(i => esc(i.nombre)).join(' · ')}</p>` : ''}
+    ${p.datosTransferencia ? `<details style="margin-top:10px"><summary>🏦 Datos para transferir</summary><pre class="datos">${esc(p.datosTransferencia)}</pre>
+      <button class="btn sm" onclick="A.copiar(partidoById('${pid}').datosTransferencia)">📋 Copiar datos</button></details>` : ''}
+    <button class="btn full" style="margin-top:12px" onclick="A.recordarPagos('${pid}')">📲 Enviar recordatorio de pago</button>
+    ${cob.some(i => i.jugadorId === me && i.pago !== 'pagado' && i.pago !== 'revision') ? `<button class="btn pri full" style="margin-top:8px" onclick="A.pagar()">💸 Informar mi pago</button>` : ''}
+    <p class="small mute center">Se actualiza sola cuando el administrador aprueba los pagos. Los pagos se descuentan primero de la deuda más antigua.</p>`}
+    ${adm}`);
+};
+/** Texto para WhatsApp con quién pagó y quién debe ese partido. */
+A.recordarPagos = pid => {
+  const p = partidoById(pid), { cob, pag } = filasPago(pid);
+  let t = `💰 *Pagos · ${p.nombre}*\n📅 ${fechaLarga(p.fecha)} · ${p.hora}\n💵 ${money(p.precio)} por jugador\n\n`;
+  t += cob.map(i => `${PAGO[i.pago].e} ${i.nombre}` + (i.pago === 'debe' || i.pago === 'parcial' ? ` · debe ${money(i.debe)}` : i.pago === 'revision' ? ' · en revisión' : '')).join('\n');
+  t += `\n\nPagaron ${pag} de ${cob.length}.`;
+  if (p.datosTransferencia) t += `\n\n🏦 *Datos para transferir*\n${p.datosTransferencia}`;
+  t += `\n\n👉 Informa tu pago aquí: ${appUrl()}`;
+  if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) navigator.share({ text: t }).catch(() => { });
+  else open(wa(t), '_blank');
+};
 A.anotar = pid => act('inscribir', { partidoId: pid });
 A.cancelar = async pid => {
   const p = partidoById(pid);
@@ -558,7 +660,8 @@ function viewCuenta() {
   const s = S.d.saldo;
   const movs = S.d.misMovimientos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
   S.datos = datosParaMi();
-  return heroSaldo(s) + `
+  return heroSaldo(s) + (yoBloqueado() ? `<div class="status bad">🚫 Debes más de ${S.d.config.maxPartidosDeuda} partidos: no puedes anotarte en otro
+      hasta que pagues e informes tu pago (o un administrador te habilite).</div>` : '') + `
     <button class="btn pri full big" onclick="A.pagar()">💸 Informar un pago</button>
     ${S.datos.length ? `<h3 class="sec">Datos para transferir</h3>` + S.datos.map((g, k) => `<div class="card">
       ${g.partidos.length ? `<div class="small mute">Partido${g.partidos.length > 1 ? 's' : ''}: ${g.partidos.map(p => fechaCorta(p.fecha)).join(' · ')}</div>` : ''}
@@ -597,6 +700,8 @@ function viewPerfil() {
       <div class="t" style="font-size:20px;font-weight:750">${esc(me.nombre)}</div>
       <div class="mute">${esc(fmtTel(me.telefono))} ${me.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}</div></div></div>
       <p class="small mute">Ingresas con tu nombre y tu teléfono. Si cambias de número, avísale a un administrador.</p></div>
+    <h3 class="sec">Mi ficha de jugador</h3>${formFicha(me)}
+    <h3 class="sec">Notificaciones</h3><div class="card">${cardNotif()}</div>
     <h3 class="sec">Colores</h3><div class="card"><div class="small mute">Elige la paleta de la app (sólo cambia en este celular).</div>
       <div class="pals">${Object.keys(PALETAS).map(n => `<button class="pal ${PAL === n ? 'on' : ''}" onclick="A.paleta('${n}')" aria-label="Paleta ${PALETAS[n].nombre}">
         <i style="background:${PALETAS[n].bg}"><b style="background:${PALETAS[n].pri}"></b></i>${n}. ${PALETAS[n].nombre}</button>`).join('')}</div></div>
@@ -606,12 +711,129 @@ function viewPerfil() {
       : ios ? 'En iPhone: abre el link en <b>Safari</b>, toca <b>Compartir</b> (□↑) y luego <b>“Agregar a inicio”</b>.'
       : 'En Android: abre el link en <b>Chrome</b>, menú ⋮ → <b>“Instalar app”</b> o <b>“Agregar a la pantalla principal”</b>.'}</div>
     <button class="btn red full" onclick="A.salir()">Cerrar sesión</button>
-    ${DEMO ? `<button class="btn full" style="margin-top:10px" onclick="A.resetDemo()">🔄 Reiniciar datos del demo</button>` : ''}`;
+    ${DEMO ? `<button class="btn full" style="margin-top:10px" onclick="A.simRecordatorio()">🔔 Simular recordatorio de mañana 08:00</button>
+      <button class="btn full" style="margin-top:10px" onclick="A.resetDemo()">🔄 Reiniciar datos del demo</button>` : ''}
+    <p class="small mute center">${APP} · versión ${VERSION_APP}</p>`;
 }
+
+/* ---------- mi ficha de jugador ---------- */
+function segOpc(id, opciones, actual) {
+  return `<div class="seg" id="${id}">${Object.keys(opciones).map(k =>
+    `<button class="${k === actual ? 'on' : ''}" data-v="${k}" onclick="A.segT(this)">${opciones[k]}</button>`).join('')}</div>`;
+}
+/** Como A.seg, pero tocar la opción elegida la desmarca (dejarla en blanco). */
+A.segT = el => { const on = el.classList.contains('on'); [...el.parentNode.children].forEach(b => b.classList.remove('on')); if (!on) el.classList.add('on'); };
+function formFicha(j) {
+  const e = edad(j.nacimiento);
+  return `<div class="card">
+    <div class="grid2"><label>Fecha de nacimiento<input id="pf_nac" type="date" max="${S.d.hoy}" value="${esc(j.nacimiento)}" oninput="A.edadHint()"></label>
+      <label>Edad<div class="edad" id="pf_edad">${e != null ? e + ' años' : '—'}</div></label></div>
+    <div class="grid2"><label>Altura (m)<input id="pf_alt" type="text" inputmode="decimal" maxlength="5" value="${esc(String(j.altura || '').replace('.', ','))}" placeholder="1,75"></label>
+      <label>Peso (kg)<input id="pf_peso" type="text" inputmode="decimal" maxlength="5" value="${esc(String(j.peso || '').replace('.', ','))}" placeholder="75"></label></div>
+    <label>Posición preferida</label>${segOpc('pf_posA', POS_A, j.posicionA)}
+    <label>Lado de la cancha</label>${segOpc('pf_posB', POS_B, j.posicionB)}
+    <label>Pie hábil</label>${segOpc('pf_pie', PIES, j.pie)}
+    <button class="btn pri full" style="margin-top:14px" onclick="A.guardarFicha()">Guardar mi ficha</button></div>`;
+}
+A.edadHint = () => {
+  const v = val('pf_nac'), e = v ? edad(v) : null;
+  document.getElementById('pf_edad').textContent = e != null && e >= 0 ? e + ' años' : '—';
+};
+A.guardarFicha = () => act('guardarPerfil', { nacimiento: val('pf_nac'), altura: val('pf_alt'), peso: val('pf_peso'),
+  posicionA: segVal('pf_posA'), posicionB: segVal('pf_posB'), pie: segVal('pf_pie') });
+
+/* ---------- notificaciones ---------- */
+A.notifs = () => {
+  const L = S.d.notificaciones || [];
+  modal(`<h2>🔔 Notificaciones</h2>
+    ${L.length ? `<div>${L.map(n => `<div class="notif${n.leida ? '' : ' nueva'}"><div class="t">${esc(n.texto)}</div><div class="small mute">${fechaHora(n.creado)}</div></div>`).join('')}</div>`
+      : '<p class="mute">No tienes notificaciones. Cuando cierren un partido que debas, te avisamos aquí.</p>'}
+    ${S.d.saldo.deuda > S.d.saldo.pendiente ? `<button class="btn pri full" style="margin-top:12px" onclick="closeModal();A.tab('cuenta');A.pagar()">💸 Informar un pago</button>` : ''}
+    ${PUSH === 'off' ? `<button class="btn full" style="margin-top:8px" onclick="A.activarNotif()">Recibirlas en el celular</button>` : ''}`);
+  if (sinLeer()) {
+    call('leerNotificaciones').then(() => { S.d.notificaciones.forEach(n => n.leida = true); const b = document.querySelector('#bell .badge'); if (b) b.remove(); }).catch(() => { });
+  }
+};
+const pushPosible = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const esIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
+function cardNotif() {
+  const h = S.d.config.horasRecordatorio || [];
+  const info = `<p class="small mute">Te avisamos cuando se cierra un partido que debes, y al día siguiente a las ${h.join(', ')} si aún no informas tu pago.</p>`;
+  if (PUSH === 'on') return `✅ <b>Activadas en este celular</b>${info}<div class="btns"><button class="btn sm" onclick="act('probarNotificacion')">Probar</button>
+    <button class="btn sm" onclick="A.desactivarNotif()">Desactivar</button></div>`;
+  if (PUSH === 'demo') return `✅ <b>Permiso dado</b><p class="small mute">En el demo los avisos llegan sólo dentro de la app (🔔 arriba).</p>`;
+  if (PUSH === 'denegado') return `🚫 <b>Bloqueadas</b><p class="small mute">Diste "No permitir". Actívalas en los ajustes del navegador → Sitios → Notificaciones, y vuelve aquí.</p>`;
+  if (PUSH === 'no') return esIOS() && !instalada()
+    ? `📲 En iPhone primero instala la app (Safari → Compartir □↑ → <b>Agregar a inicio</b>) y ábrela desde el ícono. Ahí podrás activarlas.${info}`
+    : `Este navegador no permite notificaciones. Igual las ves en la app (🔔 arriba).${info}`;
+  return `${info}<button class="btn pri full" onclick="A.activarNotif()">🔔 Activar notificaciones</button>`;
+}
+function bannerNotif() {
+  if (PUSH !== 'off' || localStorage.getItem('plp_notif_no')) return '';
+  return `<div class="install"><div class="e">🔔</div><div class="grow"><b>Activa las notificaciones</b>
+    <div class="small mute">Para que te recordemos los pagos.</div></div>
+    <button class="btn pri sm" onclick="A.activarNotif()">Activar</button><button class="btn link" aria-label="Cerrar" onclick="localStorage.setItem('plp_notif_no','1');render()">✕</button></div>`;
+}
+const swListo = () => Promise.race([navigator.serviceWorker.ready, sleep(5000).then(() => { throw new Error('La app aún no está lista para notificaciones. Recarga la página e intenta de nuevo.'); })]);
+const b64uBytes = s => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+const bytesB64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+/** Revisa si este celular ya tiene las notificaciones activas (no pide permiso). */
+async function estadoPush() {
+  if (!pushPosible()) return PUSH = 'no';
+  if (Notification.permission === 'denied') return PUSH = 'denegado';
+  if (DEMO) return PUSH = Notification.permission === 'granted' ? 'demo' : 'off';
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    PUSH = sub && Notification.permission === 'granted' ? 'on' : 'off';
+  } catch (e) { PUSH = 'off'; }
+  return PUSH;
+}
+/** El service worker necesita la sesión para pedir el texto de la notificación cuando llega un push. */
+async function guardarSesionSW() {
+  if (DEMO || !('caches' in window)) return;
+  try {
+    const c = await caches.open('plp-sesion');
+    if (S.token) await c.put('./__sesion', new Response(JSON.stringify({ api: API_URL, token: S.token }), { headers: { 'Content-Type': 'application/json' } }));
+    else await c.delete('./__sesion');
+  } catch (e) { }
+}
+A.activarNotif = () => run(async () => {
+  if (!pushPosible()) throw new Error(esIOS() ? 'En iPhone primero instala la app (Compartir → Agregar a inicio) y ábrela desde el ícono.' : 'Este navegador no permite notificaciones.');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { PUSH = perm === 'denied' ? 'denegado' : 'off'; render(); throw new Error('Sin permiso no podemos avisarte. Puedes activarlo en los ajustes del navegador.'); }
+  const reg = await swListo();
+  if (DEMO) {
+    reg.showNotification(APP, { body: 'Así te llegarán los recordatorios de pago 🔔', icon: 'icon-192.png', badge: 'icon-192.png' });
+    PUSH = 'demo'; closeModal(); render(); return;
+  }
+  if (!S.d.config.vapid) throw new Error('El servidor todavía no tiene activadas las notificaciones. Avísale a un administrador (debe ejecutar setup en Apps Script).');
+  let sub = await reg.pushManager.getSubscription();
+  if (sub && sub.options && sub.options.applicationServerKey && bytesB64u(sub.options.applicationServerKey) !== S.d.config.vapid) { await sub.unsubscribe(); sub = null; }
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(S.d.config.vapid) });
+  await guardarSesionSW();
+  const r = await call('suscribir', { sub: sub.toJSON(), origen: appUrl() });
+  PUSH = 'on'; closeModal(); toast(r.mensaje); render();
+});
+async function quitarPush() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub) { try { await call('desuscribir', { endpoint: sub.endpoint }); } catch (e) { } await sub.unsubscribe(); }
+  } catch (e) { }
+}
+A.desactivarNotif = () => run(async () => { await quitarPush(); PUSH = 'off'; toast('Notificaciones desactivadas en este celular'); render(); });
+A.simRecordatorio = () => run(async () => {   // sólo demo: corre los recordatorios como si fuera mañana a las 08:00
+  DEMO_STORE.prop('ultimoRecordatorio', '');
+  const n = recordatorios_(DEMO_STORE, addDays(S.d.hoy, 1), '08:00');
+  toast(n ? `Se enviaron ${n} recordatorios 🔔 (a quienes deben un partido cerrado hoy)` : 'Nadie que avisar: cierra hoy un partido con deudores y vuelve a probar.');
+  await load(true);
+});
 A.salir = async () => {
   if (!await ask('¿Cerrar sesión?', 'Tendrás que ingresar de nuevo con tu nombre y teléfono.', 'Cerrar sesión', true)) return;
+  if (PUSH === 'on') await quitarPush();   // que no le lleguen al próximo que use este celular
   try { await call('logout', { token: S.token }); } catch (e) { }
-  setToken(''); S.d = null; render();
+  setToken(''); S.d = null; PUSH = 'off'; await guardarSesionSW(); render();
 };
 A.instalar = async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; render(); };
 A.resetDemo = async () => {
@@ -656,7 +878,7 @@ function admJugadores() {
       <button class="btn sm" onclick="A.compartirDeudas()">📲 Compartir deudas</button></div>
     <input placeholder="🔎 Buscar jugador" oninput="A.filtrar(this.value)">
     <div class="card list" style="margin-top:10px">${js.map(j => `<div class="li tap" data-n="${esc(j.nombre.toLowerCase())}" onclick="A.jugador('${j.id}')">
-      <div class="grow"><div class="t">${esc(j.nombre)} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}${j.activo !== 'si' ? '<span class="tag">INACTIVO</span>' : ''}</div>
+      <div class="grow"><div class="t">${esc(j.nombre)} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}${j.activo !== 'si' ? '<span class="tag">INACTIVO</span>' : ''}${bloqueadoJ(j) ? '<span class="tag red">BLOQUEADO</span>' : ''}${j.permitirDeuda && j.deuda - j.pendiente > S.d.config.maxPartidosDeuda * S.d.config.precio ? '<span class="tag ok">HABILITADO</span>' : ''}</div>
       <div class="small mute">${j.pendiente > 0 ? '⏳ ' + money(j.pendiente) + ' en revisión' : esc(fmtTel(j.telefono))}</div></div>
       <div class="amt ${j.deuda > 0 ? 'neg' : j.deuda < 0 ? 'inf' : 'pos'}">${j.deuda > 0 ? money(j.deuda) : j.deuda < 0 ? '+' + money(-j.deuda) : 'Al día'}</div></div>`).join('')}</div>`;
 }
@@ -675,8 +897,16 @@ A.jugador = id => {
   const j = jugadorById(id);
   const movs = S.d.movimientos.filter(m => m.jugadorId === id).sort((a, b) => b.fecha.localeCompare(a.fecha));
   const cobro = `Hola ${j.nombre} 👋 Tienes una deuda de ${money(j.deuda)} en ${S.d.config.nombreGrupo}. Puedes pagar e informar tu pago aquí: ${appUrl()}`;
-  modal(`<h2>${esc(j.nombre)}</h2><p class="mute">📞 ${esc(fmtTel(j.telefono))} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}</p>
-    ${heroSaldo(j)}
+  const ficha = fichaTxt(j);
+  const maxP = S.d.config.maxPartidosDeuda;
+  modal(`<h2>${esc(j.nombre)}</h2><p class="mute" style="margin-bottom:0">📞 ${esc(fmtTel(j.telefono))} ${j.rol === 'admin' ? '<span class="tag">ADMIN</span>' : ''}
+      · ${j.notificaciones ? '🔔 con notificaciones' : '🔕 sin notificaciones'}</p>
+    ${ficha.length ? `<div class="ficha">${ficha.map(f => `<span class="chip">${esc(f)}</span>`).join('')}</div>` : '<p class="small mute">Aún no completa su ficha de jugador.</p>'}
+    <div style="margin-top:12px">${heroSaldo(j)}</div>
+    ${j.rol !== 'admin' ? `<label class="li" style="margin:0 0 8px;color:var(--ink);font-weight:400"><input type="checkbox" ${j.permitirDeuda ? 'checked' : ''}
+        onchange="act('editarJugador',{id:'${id}',permitirDeuda:this.checked},()=>A.jugador('${id}'))">
+      <div class="grow"><div class="t">Permitir anotarse con deuda</div><div class="small mute">${bloqueadoJ(j) ? `🚫 Ahora <b>no puede anotarse</b>: debe más de ${maxP} partidos.`
+        : j.permitirDeuda ? 'Habilitado: puede anotarse aunque deba.' : `Sin esto, no puede anotarse si debe más de ${maxP} partidos.`}</div></div></label>` : ''}
     <div class="btns"><button class="btn pri" onclick="A.movAdmin('${id}','pago')">💵 Registrar pago</button><button class="btn" onclick="A.movAdmin('${id}','cargo')">➕ Cargo</button></div>
     ${j.deuda > 0 ? `<a class="btn full" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" href="${wa(cobro, j.telefono)}">💬 Cobrar por WhatsApp</a>` : ''}
     <h3 class="sec">Movimientos</h3><div class="list" style="padding:0">${movs.length ? movs.map(m => rowMov(m, true)).join('') : '<p class="mute">Sin movimientos.</p>'}</div>
@@ -720,11 +950,12 @@ function admPartidos() {
       Después de jugar, entra al partido y toca <b>“Cerrar partido”</b> para confirmar quién paga.</p>
     ${cerrados.length ? `<h3 class="sec">Cerrados y suspendidos</h3><div class="card list">${cerrados.map(p => `<div class="li tap" onclick="A.gestionar('${p.id}')">
       <div class="grow"><div class="t">${fechaCorta(p.fecha)} · ${esc(p.hora)} <span class="pill ${p.estado === 'cerrado' ? '' : 'anul'}">${p.estado}</span></div>
-      <div class="small mute">${p.datosTransferencia ? '🏦 Con datos para transferir' : 'Sin datos para transferir'}</div></div><span class="mute">›</span></div>`).join('')}</div>` : ''}`;
+      <div class="small mute">${p.estado === 'cerrado' ? `${filasPago(p.id).pag}/${filasPago(p.id).cob.length} pagaron · ${p.video ? '🎥 con video' : 'sin video'}` : 'No se cobra'}</div></div><span class="mute">›</span></div>`).join('')}</div>` : ''}`;
 }
 function formPartido(p) {
   const c = S.d.config;
-  return `<div class="grid2"><label>Fecha<input id="n_fecha" type="date" value="${p.fecha}"></label>
+  return `<label>Nombre del partido <span class="small">(opcional · va en las notificaciones)</span><input id="n_nombre" maxlength="60" value="${esc(p.nombrePropio || '')}" placeholder="Ej: Pichanga de los jueves"></label>
+    <div class="grid2"><label>Fecha<input id="n_fecha" type="date" value="${p.fecha}"></label>
       <label>Hora<input id="n_hora" type="time" value="${esc(p.hora)}"></label></div>
     <label>Lugar<input id="n_lugar" maxlength="80" value="${esc(p.lugar || '')}" placeholder="Ej: Cancha 2"></label>
     <div class="grid2"><label>Costo cancha${inputMonto('n_costo', p.costoTotal, 'oninput="A.calcPrecio()"')}</label>
@@ -742,14 +973,14 @@ A.hintPrecio = () => {
   const cupo = entero(val('n_cupo')), precio = entero(val('n_precio')), costo = entero(val('n_costo'));
   h.innerHTML = cupo && precio ? 'Si juegan ' + cupo + ': ' + cuentaCancha(cupo, precio, costo) : '';
 };
-const datosForm = () => ({ fecha: val('n_fecha'), hora: val('n_hora'), lugar: val('n_lugar'), costoTotal: val('n_costo'), cupo: val('n_cupo'),
+const datosForm = () => ({ nombre: val('n_nombre'), fecha: val('n_fecha'), hora: val('n_hora'), lugar: val('n_lugar'), costoTotal: val('n_costo'), cupo: val('n_cupo'),
   precio: val('n_precio'), nota: val('n_nota'), datosTransferencia: val('n_datos') });
 A.nuevoPartido = () => {
   const c = S.d.config;
   const ult = S.d.partidos.slice().sort(asc).pop();
   let fecha = ult ? addDays(ult.fecha, 7) : S.d.hoy;
   while (fecha < S.d.hoy) fecha = addDays(fecha, 7);
-  const base = { fecha, hora: ult ? ult.hora : c.hora, lugar: ult ? ult.lugar : c.lugar, costoTotal: c.costoCancha, cupo: c.cupo,
+  const base = { nombrePropio: ult ? ult.nombrePropio : '', fecha, hora: ult ? ult.hora : c.hora, lugar: ult ? ult.lugar : c.lugar, costoTotal: c.costoCancha, cupo: c.cupo,
     precio: precioDe(c.costoCancha), datosTransferencia: c.datosTransferencia };
   modal(`<h2>Nuevo partido</h2>${formPartido(base)}
     <button class="btn pri full big" style="margin-top:16px" onclick="act('crearPartido', datosForm())">Crear partido</button>`);
@@ -758,7 +989,7 @@ A.nuevoPartido = () => {
 A.gestionar = pid => {
   const p = partidoById(pid);
   if (!p) return;
-  if (p.estado !== 'abierto') return A.gestionarCerrado(pid);
+  if (p.estado !== 'abierto') return A.plantilla(pid);
   const L = insOf(pid);
   const activos = L.filter(i => i.estado === 'titular' || i.estado === 'espera');
   const libres = S.d.jugadores.filter(j => j.activo === 'si' && !activos.some(i => i.jugadorId === j.id)).sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -787,8 +1018,9 @@ A.gestionarCerrado = pid => {
   modal(`<h2>${fechaLarga(p.fecha)} · ${esc(p.hora)}</h2>
     <p class="mute">${p.estado === 'cerrado' ? '✅ Cerrado' : '🚫 Suspendido'} · ${n} jugadores · ${money(p.precio)} c/u</p>
     ${campoDatos('t_datos', p.datosTransferencia)}
-    <button class="btn pri full big" style="margin-top:14px" onclick="act('transferenciaPartido',{id:'${pid}',datosTransferencia:val('t_datos')})">Guardar datos para transferir</button>
-    <p class="small mute center">Un partido ${p.estado} ya no cambia de fecha, precio ni jugadores; los datos para transferir sí.</p>`);
+    <button class="btn pri full big" style="margin-top:14px" onclick="act('transferenciaPartido',{id:'${pid}',datosTransferencia:val('t_datos')},()=>A.plantilla('${pid}'))">Guardar datos para transferir</button>
+    <button class="btn full" style="margin-top:8px" onclick="A.plantilla('${pid}')">Volver</button>
+    <p class="small mute center">Un partido ${p.estado} ya no cambia de fecha, precio ni jugadores; los datos para transferir y el video sí.</p>`);
 };
 A.cerrar = pid => {
   const p = partidoById(pid);
@@ -864,9 +1096,12 @@ document.addEventListener('visibilitychange', () => {
       try { const r = await call('login', { nombre: adm ? 'Jonathan' : 'Jugador Demo', telefono: adm ? '911111111' : '922222222' }); setToken(r.token); } catch (e) { }
     }
     if (q.get('pal')) PAL = aplicarPaleta(q.get('pal'));   // vista previa de una paleta (no se guarda)
-    if (q.get('tab')) S.tab = q.get('tab');
     if (q.get('adm')) S.adm = q.get('adm');
   }
+  // ?tab=cuenta: la usa la notificación para abrir directo en "Mi cuenta".
+  const tab = new URLSearchParams(location.search).get('tab');
+  if (tab && /^(partidos|cuenta|admin|perfil)$/.test(tab)) S.tab = tab;
+  await estadoPush();
   await load();
 })();
 </script>
